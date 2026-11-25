@@ -30,6 +30,21 @@ python -m spaghetti1 train --run-name e2_convnext_tiny_288_fold0 --image-size 28
 
 Mixed precision (bfloat16) is used automatically on GPUs that support it. On a laptop RTX 4060 (8 GB), ConvNeXt-Tiny at 224 px takes about 20 s per epoch and about 10 minutes per run.
 
+## Exact commands used for every run
+
+These six commands produced every result on this page; all other settings are the `TrainConfig` defaults (also saved in `results/runs/<run>/config.json`). Each run needs the dataset (`data/raw` or `--data-dir <package>`) and took 8–20 minutes on a laptop RTX 4060.
+
+```bash
+python -m spaghetti1 train --run-name e0_convnext_tiny_original_fold0 --label-policy original --predict-test
+python -m spaghetti1 train --run-name e1_convnext_tiny_drop_copies_fold0 --label-policy drop_copies
+python -m spaghetti1 train --run-name e1_convnext_tiny_as_given_fold0 --label-policy as_given
+python -m spaghetti1 train --run-name e2_convnext_tiny_288_fold0 --image-size 288 --label-policy drop_copies --epochs 30 --resume
+python -m spaghetti1 train --run-name e2_convnext_tiny_384_fold0 --image-size 384 --batch-size 16 --label-policy drop_copies --epochs 30 --resume
+python -m spaghetti1 train --run-name e3_convnext_small_288_fold0 --model convnext_small.fb_in22k_ft_in1k --image-size 288 --batch-size 24 --label-policy drop_copies --epochs 30 --resume
+```
+
+Shared defaults: fold 0, AdamW (lr 1e-4, head ×10, weight decay 0.05), 1 warm-up epoch then cosine decay, label smoothing 0.1, loss weights `(1/n_c)^0.5`, drop path 0.1, bfloat16 mixed precision, seed 42, 25 epochs unless set. Retraining gives very close but not bit-identical numbers (GPU non-determinism); to use the exact trained models, load the shared weights instead ([09](09_MODEL_WEIGHTS_AND_REPRODUCTION.md)).
+
 ## What a run saves (`outputs/runs/<run_name>/`)
 
 | File | Contents |

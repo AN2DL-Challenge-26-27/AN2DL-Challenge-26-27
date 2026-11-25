@@ -1,3 +1,8 @@
+"""Build the EDA tables, plots, and summary (``python -m spaghetti1 eda``).
+
+Documentation: ``docs/02_EDA_FINDINGS.md``.
+"""
+
 import json
 from pathlib import Path
 
@@ -10,6 +15,7 @@ from .plots import plot_distribution, plot_domain_shift, plot_grid
 
 
 def class_distribution(manifest: pd.DataFrame) -> pd.DataFrame:
+    """Count and percentage of training images per class."""
     counts = manifest["label"].value_counts().reindex(CLASS_NAMES, fill_value=0)
     table = counts.rename_axis("label").rename("count").reset_index()
     table["class_name"] = table["label"].map(CLASS_NAMES)
@@ -18,6 +24,7 @@ def class_distribution(manifest: pd.DataFrame) -> pd.DataFrame:
 
 
 def save_sample_grids(data_dir: Path, valid: pd.DataFrame, output_dir: Path, seed: int) -> None:
+    """Save example images per class, random test images, and the noisiest images."""
     train = valid.loc[valid["split"] == "train"]
     test = valid.loc[valid["split"] == "test"]
     class_examples = []
@@ -34,6 +41,7 @@ def save_sample_grids(data_dir: Path, valid: pd.DataFrame, output_dir: Path, see
 
 
 def run_eda(data_dir: Path, output_dir: Path, workers: int, seed: int, check_counts: bool) -> dict:
+    """Scan all images, write every EDA table and plot to ``output_dir``, and return the summary."""
     manifest = load_manifest(data_dir)
     layout = validate_layout(data_dir, manifest, check_counts=check_counts)
     print(f"Scanning {len(manifest):,} images with {workers} workers...", flush=True)

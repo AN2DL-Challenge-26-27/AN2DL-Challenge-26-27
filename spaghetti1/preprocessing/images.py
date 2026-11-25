@@ -1,3 +1,5 @@
+"""Decode competition PNGs. Every module reads images through ``read_rgb_png``."""
+
 from pathlib import Path
 from typing import BinaryIO
 

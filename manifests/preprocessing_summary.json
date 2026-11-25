@@ -1,0 +1,45 @@
+{
+  "train_images": 4328,
+  "train_kept": 3995,
+  "excluded": {
+    "alien_overlay": 332,
+    "blank_frame": 1
+  },
+  "alien_overlays_in_test": 0,
+  "blank_frames_in_test": [
+    "test_13385",
+    "test_13646"
+  ],
+  "duplicate_min_correlation": {
+    "train-train": 0.75,
+    "train-test": 0.8
+  },
+  "duplicate_groups": 721,
+  "train_images_in_duplicate_groups": 1717,
+  "copies": 996,
+  "copies_with_label_different_from_original": 994,
+  "conflicting_label_sets": {
+    "2-3": 409,
+    "5-6": 309,
+    "0-2-3": 1,
+    "7-9": 1,
+    "2-6": 1
+  },
+  "unique_images": 2278,
+  "noisy_train_kept": 671,
+  "noisy_train_copies": 657,
+  "noisy_test": 258,
+  "test_images_with_train_duplicate": 9,
+  "folds": {
+    "n_folds": 5,
+    "seed": 42,
+    "strategy": "StratifiedGroupKFold(original_label, dup_group)"
+  },
+  "fold_sizes": {
+    "0": 799,
+    "1": 799,
+    "2": 799,
+    "3": 799,
+    "4": 799
+  }
+}

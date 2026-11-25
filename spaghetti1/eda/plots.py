@@ -1,3 +1,5 @@
+"""Plots for the exploratory analysis. Documentation: ``docs/02_EDA_FINDINGS.md``."""
+
 from pathlib import Path
 
 from matplotlib.backends.backend_agg import FigureCanvasAgg
@@ -10,10 +12,12 @@ from ..preprocessing.images import read_rgb_png
 
 
 def save_plot(figure: Figure, path: Path) -> None:
+    """Render a matplotlib figure to a PNG without needing a display."""
     FigureCanvasAgg(figure).print_figure(path, dpi=140, bbox_inches="tight")
 
 
 def plot_distribution(counts: pd.DataFrame, path: Path) -> None:
+    """Bar chart of the training class counts."""
     figure = Figure(figsize=(11, 5), layout="constrained")
     axis = figure.subplots()
     bars = axis.bar(counts["class_name"], counts["count"], color="steelblue")
@@ -25,6 +29,7 @@ def plot_distribution(counts: pd.DataFrame, path: Path) -> None:
 
 
 def plot_domain_shift(valid: pd.DataFrame, path: Path) -> None:
+    """Overlaid train/test histograms of brightness, contrast, sharpness, and channel means."""
     columns = ("mean", "std", "hf_energy", "red_mean", "green_mean", "blue_mean")
     figure = Figure(figsize=(12, 7), layout="constrained")
     axes = figure.subplots(2, 3)
@@ -43,6 +48,7 @@ def plot_domain_shift(valid: pd.DataFrame, path: Path) -> None:
 
 
 def plot_grid(data_dir: Path, rows: list[pd.DataFrame], width: int, title: str, path: Path) -> None:
+    """Grid of images: one list of samples per row, captioned with class and sharpness."""
     figure = Figure(figsize=(2.3 * width, 2.3 * len(rows)), layout="constrained")
     axes = figure.subplots(len(rows), width, squeeze=False)
     for axis_row, samples in zip(axes, rows):

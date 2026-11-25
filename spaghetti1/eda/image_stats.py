@@ -1,3 +1,8 @@
+"""Per-image statistics for the exploratory analysis (``python -m spaghetti1 eda``).
+
+Documentation: ``docs/02_EDA_FINDINGS.md``.
+"""
+
 from concurrent.futures import ThreadPoolExecutor
 from hashlib import sha256
 from io import BytesIO
@@ -16,6 +21,7 @@ METRICS = (
 
 
 def inspect_image(path: Path) -> dict:
+    """Return the file hash and pixel statistics of one image, or the decoding error."""
     result = dict.fromkeys(("sha256", "error", *METRICS))
     try:
         raw = path.read_bytes()
@@ -46,6 +52,7 @@ def inspect_image(path: Path) -> dict:
 
 
 def scan_images(data_dir: Path, manifest: pd.DataFrame, workers: int) -> pd.DataFrame:
+    """Inspect every image in parallel threads and append the statistics to the manifest."""
     paths = (data_dir / row.split / f"{row.id}.png" for row in manifest.itertuples())
     with ThreadPoolExecutor(max_workers=workers) as pool:
         results = pool.map(inspect_image, paths)

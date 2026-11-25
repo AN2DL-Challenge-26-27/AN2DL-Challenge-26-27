@@ -1,3 +1,8 @@
+"""Download the official competition data from Kaggle (step 1 of the pipeline).
+
+Command: ``python -m spaghetti1 download``. Documentation: ``docs/01_DATASET_AND_TASK.md``.
+"""
+
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -6,6 +11,11 @@ from .dataset import load_manifest, validate_layout
 
 
 def download_dataset(destination: Path) -> Path:
+    """Download the dataset into ``destination`` (or reuse a valid copy) and return its folder.
+
+    The download goes to a temporary folder next to ``destination`` and is moved into place
+    only after the layout check passes, so an interrupted download never looks complete.
+    """
     import kagglehub
     from kagglehub.exceptions import KaggleApiHTTPError, UnauthenticatedError
 

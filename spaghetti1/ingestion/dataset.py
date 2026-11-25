@@ -1,3 +1,9 @@
+"""Read the official CSV files and check them against the PNG files on disk.
+
+Used by ``python -m spaghetti1 verify`` and by every later step. Documentation:
+``docs/01_DATASET_AND_TASK.md``.
+"""
+
 from pathlib import Path
 
 import pandas as pd
@@ -6,6 +12,11 @@ from ..config import CLASS_NAMES, EXPECTED_COUNTS, SPLIT_CSVS
 
 
 def load_manifest(data_dir: Path) -> pd.DataFrame:
+    """Return one row per image (``id``, ``label``, ``split``) from train.csv and sample_submission.csv.
+
+    Raises ``ValueError`` for a wrong header, malformed or duplicate ids, or labels outside 0-9.
+    Test labels are set to missing, because the sample submission only holds placeholders.
+    """
     splits = []
     for split, csv_name in SPLIT_CSVS.items():
         frame = pd.read_csv(data_dir / csv_name, dtype={"id": "string"})
@@ -27,6 +38,7 @@ def load_manifest(data_dir: Path) -> pd.DataFrame:
 def validate_layout(
     data_dir: Path, manifest: pd.DataFrame, *, check_counts: bool = True
 ) -> dict[str, dict[str, int]]:
+    """Check that every CSV id has a PNG and every PNG has a CSV id; return counts per split."""
     summary = {}
     for split, expected_count in EXPECTED_COUNTS.items():
         folder = data_dir / split

@@ -61,40 +61,44 @@ def verify_package(root: Path) -> dict:
     return info
 
 
-def _find_package_root(folder: Path) -> Path | None:
-    if (folder / INFO_FILE).is_file():
+def find_package_root(folder: Path, info_file: str = INFO_FILE) -> Path | None:
+    """The folder holding ``info_file``: ``folder`` itself or one level below it."""
+    if (folder / info_file).is_file():
         return folder
-    candidates = sorted(path.parent for path in folder.glob(f"*/{INFO_FILE}"))
+    candidates = sorted(path.parent for path in folder.glob(f"*/{info_file}"))
     return candidates[-1] if candidates else None
 
 
-def _extract(archive: Path, target_dir: Path) -> Path:
+def _extract(archive: Path, target_dir: Path, info_file: str) -> Path:
     print(f"Extracting {archive.name} to {target_dir} ...", flush=True)
     with zipfile.ZipFile(archive) as bundle:
         bundle.extractall(target_dir)
-    root = _find_package_root(target_dir)
+    root = find_package_root(target_dir, info_file)
     if root is None:
-        raise RuntimeError(f"{archive} does not contain {INFO_FILE}")
+        raise RuntimeError(f"{archive} does not contain {info_file}")
     return root
 
 
-def prepare_dataset(source: str | Path, target_dir: Path | None = None, *, keep_zip: bool = False) -> Path:
-    """Make the cleaned dataset available locally and return its root folder."""
-    target_dir = Path(target_dir) if target_dir else default_target_dir()
+def obtain_package(source: str | Path, target_dir: Path, *, info_file: str, verify, zip_name: str,
+                   keep_zip: bool = False) -> Path:
+    """Shared logic of every package (dataset, model weights): reuse, copy, or download, then verify.
+
+    ``verify(root)`` must raise ``RuntimeError`` for an incomplete package and return its info.
+    """
     target_dir.mkdir(parents=True, exist_ok=True)
     source_path = Path(str(source))
 
     if source_path.is_dir():  # already extracted somewhere
-        root = _find_package_root(source_path)
+        root = find_package_root(source_path, info_file)
         if root is None:
-            raise FileNotFoundError(f"{source_path} has no {INFO_FILE}; point to the extracted package folder")
-        verify_package(root)
+            raise FileNotFoundError(f"{source_path} has no {info_file}; point to the extracted package folder")
+        verify(root)
         return root
 
-    existing = _find_package_root(target_dir)
+    existing = find_package_root(target_dir, info_file)
     if existing is not None:
         try:
-            info = verify_package(existing)
+            info = verify(existing)
             print(f"Using existing {info['name']} {info['version']} at {existing}")
             return existing
         except RuntimeError as error:
@@ -114,14 +118,22 @@ def prepare_dataset(source: str | Path, target_dir: Path | None = None, *, keep_
             import gdown
         except ImportError as error:
             raise ImportError("Downloading from Google Drive needs gdown: pip install gdown") from error
-        archive = target_dir / "spaghetti1_clean.zip"
+        archive = target_dir / zip_name
         print(f"Downloading Google Drive file {file_id} ...", flush=True)
         if gdown.download(id=file_id, output=str(archive), quiet=False) is None:
             raise RuntimeError("Download failed. Share the file as 'Anyone with the link' (Viewer) and retry.")
 
-    root = _extract(archive, target_dir)
-    if not keep_zip:
+    root = _extract(archive, target_dir, info_file)
+    if not keep_zip and archive.resolve() != source_path.resolve():
         archive.unlink()
+    verify(root)
+    return root
+
+
+def prepare_dataset(source: str | Path, target_dir: Path | None = None, *, keep_zip: bool = False) -> Path:
+    """Make the cleaned dataset available locally and return its root folder."""
+    root = obtain_package(source, Path(target_dir) if target_dir else default_target_dir(), info_file=INFO_FILE,
+                          verify=verify_package, zip_name="spaghetti1_clean.zip", keep_zip=keep_zip)
     info = verify_package(root)
     print(f"Ready: {info['name']} {info['version']} at {root} "
           f"({info['counts']['train_png']:,} train / {info['counts']['test_png']:,} test images)")

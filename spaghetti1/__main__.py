@@ -9,6 +9,12 @@ Commands in pipeline order (documentation in ``docs/00_START_HERE.md``):
 5. ``augment-preview`` save a grid of augmented training images
 6. ``export``          pack the cleaned dataset into one zip for Google Drive
 7. ``fetch``           download or copy that zip and extract it on any machine
+8. ``train``           train and evaluate one model; results in ``outputs/runs/``
+9. ``evaluate``        re-score a saved model on its validation fold (no retraining)
+10. ``predict``        test predictions + submission.csv from one model or an ensemble
+11. ``export-weights`` pack trained models into one zip for Google Drive
+12. ``fetch-weights``  download or copy that zip, extract it, and verify checksums
+13. ``export-results`` copy configs, metrics, curves, and submissions of every run to ``results/``
 """
 
 import argparse
@@ -21,6 +27,20 @@ from dotenv import load_dotenv
 
 from .config import DATA_DIR, NUM_FOLDS, OUTPUT_DIR, PREPROCESS_DIR, PROJECT_DIR
 from .ingestion.dataset import load_manifest, validate_layout
+
+
+# Validated ensembles of the fold-0 runs (validation weighted F1 with 8-way TTA), recorded in the
+# weights package so everyone knows which combination to use.
+KNOWN_ENSEMBLES = {
+    "best_validated": {
+        "runs": ["e1_convnext_tiny_drop_copies_fold0", "e2_convnext_tiny_384_fold0", "e3_convnext_small_288_fold0"],
+        "validation_weighted_f1_tta": 0.8561,
+    },
+    "two_tiny_models": {
+        "runs": ["e1_convnext_tiny_drop_copies_fold0", "e2_convnext_tiny_384_fold0"],
+        "validation_weighted_f1_tta": 0.846,
+    },
+}
 
 
 def main() -> int:
@@ -73,6 +93,45 @@ def main() -> int:
     fetch = commands.add_parser("fetch", help="download or copy the cleaned package and extract it locally")
     fetch.add_argument("--source", required=True, help="Google Drive link/file id, zip path, or extracted folder")
     fetch.add_argument("--target-dir", type=Path, default=None)
+
+    from dataclasses import fields
+
+    from .training.run import TrainConfig
+
+    train = commands.add_parser("train", help="train one model on a CV fold and save metrics to outputs/runs/")
+    train.add_argument("--data-dir", type=Path, default=data_dir, help="raw data folder or extracted Drive package")
+    for option in fields(TrainConfig):
+        flag = "--" + option.name.replace("_", "-")
+        if option.type in (bool, "bool"):
+            train.add_argument(flag, action=argparse.BooleanOptionalAction, default=option.default)
+        else:
+            kind = {"int": int, "float": float, "str": str}.get(str(option.type), option.type)
+            train.add_argument(flag, type=kind, default=option.default)
+
+    runs_dir = PROJECT_DIR / "outputs" / "runs"
+    best_runs = [runs_dir / name for name in (
+        "e0_convnext_tiny_original_fold0", "e1_convnext_tiny_drop_copies_fold0", "e1_convnext_tiny_as_given_fold0",
+        "e2_convnext_tiny_288_fold0", "e2_convnext_tiny_384_fold0", "e3_convnext_small_288_fold0")]
+
+    evaluate = commands.add_parser("evaluate", help="re-score a saved model on its validation fold")
+    evaluate.add_argument("--run-dir", type=Path, required=True, help="folder with best.pt and config.json")
+    predict = commands.add_parser("predict", help="predict the test set with one model or an ensemble")
+    predict.add_argument("--run-dirs", type=Path, nargs="+", required=True, help="one or more run folders")
+    predict.add_argument("--output-dir", type=Path, required=True)
+    for command in (evaluate, predict):
+        command.add_argument("--data-dir", type=Path, default=data_dir, help="raw data folder or extracted Drive package")
+        command.add_argument("--tta", action=argparse.BooleanOptionalAction, default=True)
+        command.add_argument("--num-workers", type=int, default=4)
+
+    export_weights = commands.add_parser("export-weights", help="pack trained models into a zip for Google Drive")
+    export_weights.add_argument("--runs", type=Path, nargs="+", default=best_runs)
+    export_weights.add_argument("--output-dir", type=Path, default=PROJECT_DIR / "outputs" / "export")
+    export_weights.add_argument("--version", default="v1")
+    fetch_weights = commands.add_parser("fetch-weights", help="download or copy the weights zip and verify it")
+    fetch_weights.add_argument("--source", required=True, help="Google Drive link/file id, zip path, or extracted folder")
+    fetch_weights.add_argument("--target-dir", type=Path, default=None)
+    export_results = commands.add_parser("export-results", help="copy lightweight run outputs to results/ for git")
+    export_results.add_argument("--results-dir", type=Path, default=PROJECT_DIR / "results")
     args = parser.parse_args()
 
     try:
@@ -115,6 +174,43 @@ def main() -> int:
             from .sharing.fetch import prepare_dataset
 
             print(f"Dataset folder: {prepare_dataset(args.source, args.target_dir)}")
+            return 0
+
+        if args.command == "evaluate":
+            from .training.predict import evaluate_run
+
+            evaluate_run(args.run_dir, args.data_dir, tta=args.tta, num_workers=args.num_workers)
+            return 0
+
+        if args.command == "predict":
+            from .training.predict import predict_test
+
+            predict_test(args.run_dirs, args.data_dir, args.output_dir, tta=args.tta, num_workers=args.num_workers)
+            return 0
+
+        if args.command == "export-weights":
+            from .sharing.weights import export_weights as pack_weights
+
+            print(f"Saved {pack_weights(args.runs, args.output_dir, version=args.version, ensembles=KNOWN_ENSEMBLES)}")
+            return 0
+
+        if args.command == "fetch-weights":
+            from .sharing.weights import prepare_weights
+
+            print(f"Weights folder: {prepare_weights(args.source, args.target_dir)}")
+            return 0
+
+        if args.command == "export-results":
+            from .sharing.weights import export_results as snapshot
+
+            print(f"Saved {snapshot(runs_dir, args.results_dir, PROJECT_DIR / 'outputs' / 'submissions')}")
+            return 0
+
+        if args.command == "train":
+            from .training.run import run_experiment
+
+            settings = {option.name: getattr(args, option.name) for option in fields(TrainConfig)}
+            run_experiment(TrainConfig(**settings), args.data_dir)
             return 0
 
         if args.command == "verify":

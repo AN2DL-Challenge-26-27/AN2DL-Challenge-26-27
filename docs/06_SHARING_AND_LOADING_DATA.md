@@ -6,6 +6,8 @@ The cleaned dataset is shared as **one zip file on Google Drive**. Every teammat
 
 Code: [spaghetti1/sharing/export.py](../spaghetti1/sharing/export.py), [spaghetti1/sharing/fetch.py](../spaghetti1/sharing/fetch.py), [spaghetti1/preprocessing/loaders.py](../spaghetti1/preprocessing/loaders.py). Notebook: [notebooks/01_load_preprocessed_data.ipynb](../notebooks/01_load_preprocessed_data.ipynb).
 
+The trained models are shared the same way in a second zip, `spaghetti1_weights_v1.zip` (756 MB); see [09](09_MODEL_WEIGHTS_AND_REPRODUCTION.md).
+
 ## The package: `spaghetti1_clean_v1.zip` (2.6 GB)
 
 ```text

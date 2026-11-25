@@ -16,6 +16,8 @@ Read the documents in number order. Each one builds on the previous one.
 | 05 | [Augmentation and transforms](05_AUGMENTATION_AND_TRANSFORMS.md) | What happens to an image between disk and model, and the switches to experiment with |
 | 06 | [Sharing and loading data](06_SHARING_AND_LOADING_DATA.md) | Google Drive package, Colab notebook, `build_dataloaders` |
 | 07 | [Next steps](07_NEXT_STEPS.md) | Experiment roadmap for the baseline and model phases |
+| 08 | [Training and results](08_TRAINING_AND_RESULTS.md) | How to train a model, where results are saved, what was tested, and the results |
+| 09 | [Model weights and reproduction](09_MODEL_WEIGHTS_AND_REPRODUCTION.md) | Weights package on Google Drive; checking scores and creating submissions without retraining |
 
 If you only want to train a model, read 00, 03 (summary table only), and 06. Then open [notebooks/01_load_preprocessed_data.ipynb](../notebooks/01_load_preprocessed_data.ipynb).
 
@@ -27,6 +29,7 @@ If you only want to train a model, read 00, 03 (summary table only), and 06. The
 │   ├── train_manifest.csv
 │   ├── test_manifest.csv
 │   └── preprocessing_summary.json
+├── results/                    # lightweight results of every run + submission files (tracked in git)
 ├── notebooks/
 │   └── 01_load_preprocessed_data.ipynb   # Colab entry point for every teammate
 ├── spaghetti1/                 # Python package; run it with `python -m spaghetti1 <command>`
@@ -35,7 +38,8 @@ If you only want to train a model, read 00, 03 (summary table only), and 06. The
 │   ├── ingestion/              # step 1-2: download and verify the official data
 │   ├── eda/                    # step 3: exploratory statistics and plots
 │   ├── preprocessing/          # step 4-5: cleaning, manifests, folds, transforms, DataLoaders
-│   └── sharing/                # step 6-7: pack the cleaned data for Google Drive and fetch it back
+│   ├── sharing/                # step 6-7: pack the cleaned data for Google Drive and fetch it back
+│   └── training/               # step 8-10: train, evaluate, and predict; track results
 ├── data/  outputs/             # local only (ignored by git): raw data, reports, review sheets, zip
 ├── requirements.txt
 └── .env.example
@@ -54,6 +58,11 @@ Run them from the repository root with Python 3.12. The numbers match the code c
 | 5 | `python -m spaghetti1 augment-preview` | `outputs/preprocessing/augmentation_preview.png` | Anyone changing augmentation |
 | 6 | `python -m spaghetti1 export` | `outputs/export/spaghetti1_clean_v1.zip` (2.6 GB) | Whoever uploads to Drive |
 | 7 | `python -m spaghetti1 fetch --source <Drive link>` | Extracted package, verified | Every teammate (or use the notebook) |
+| 8 | `python -m spaghetti1 train --run-name <name>` | `outputs/runs/<name>/` + a row in `outputs/runs/results.csv` | Whoever runs an experiment |
+| 9 | `python -m spaghetti1 evaluate --run-dir <run>` | Validation score of saved weights | Anyone checking a result |
+| 10 | `python -m spaghetti1 predict --run-dirs <run> ... --output-dir <dir>` | `submission.csv` from one model or an ensemble | Whoever submits |
+| 11 | `python -m spaghetti1 export-weights` / `fetch-weights --source <link>` | Weights zip for Google Drive / verified local copy | Uploader / everyone |
+| 12 | `python -m spaghetti1 export-results` | `results/` snapshot for git | Whoever finishes experiments |
 
 Steps 1–6 have already been run. Teammates only need step 7, or notebook 01, which runs it for them.
 

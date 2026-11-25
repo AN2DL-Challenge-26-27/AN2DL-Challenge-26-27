@@ -1,0 +1,224 @@
+"""Run one training experiment end to end and save everything needed to compare it.
+
+Command: ``python -m spaghetti1 train --run-name <name> [options]``.
+Documentation: ``docs/08_TRAINING_AND_RESULTS.md``.
+
+Every run writes ``outputs/runs/<run_name>/``:
+
+* ``config.json``          all settings of the run
+* ``history.csv``          per epoch: learning rate, train loss/accuracy, validation loss and F1
+* ``metrics.json``         validation metrics of the best epoch, without and with 8-way TTA
+* ``confusion_matrix.png`` and ``confusion_matrix_tta.png``
+* ``val_predictions.csv``  per validation image: true label and class probabilities (for ensembling)
+* ``best.pt``              weights of the epoch with the highest validation weighted F1
+* ``last.pt``              full training state after the latest epoch (model, optimizer, step,
+                           history, RNG); ``--resume`` continues from it after a crash or stop
+* ``test_probabilities.npy`` and ``submission.csv`` when ``predict_test`` is on
+
+and appends one summary row to ``outputs/runs/results.csv``.
+"""
+
+from dataclasses import asdict, dataclass
+from datetime import datetime
+import json
+from pathlib import Path
+import random
+import time
+
+import numpy as np
+import pandas as pd
+import torch
+from torch import nn
+
+from ..config import NUM_CLASSES, PROJECT_DIR
+from ..preprocessing.dataset import class_weights
+from ..preprocessing.loaders import build_dataloaders
+from ..preprocessing.transforms import AugmentConfig, PreprocessConfig
+from .engine import build_optimizer, create_model, predict, train_one_epoch
+from .metrics import compute_metrics, plot_confusion
+
+RUNS_DIR = PROJECT_DIR / "outputs" / "runs"
+
+
+@dataclass
+class TrainConfig:
+    """All settings of one experiment. Defaults are the baseline (E0)."""
+
+    run_name: str = "e0_convnext_tiny_fold0"
+    model: str = "convnext_tiny.fb_in22k_ft_in1k"
+    fold: int = 0
+    epochs: int = 25
+    batch_size: int = 32
+    image_size: int = 224
+    lr: float = 1e-4
+    head_lr_multiplier: float = 10.0
+    weight_decay: float = 0.05
+    warmup_epochs: float = 1.0
+    drop_path_rate: float = 0.1
+    label_smoothing: float = 0.1
+    class_weight_power: float = 0.5  # 0 = unweighted loss, 0.5 = 1/sqrt(n_c), 1 = inverse frequency
+    label_policy: str = "original"
+    balance_power: float = 0.0
+    augment: bool = True
+    background_normalize: bool = False
+    denoise: str = "none"
+    tta: bool = True
+    predict_test: bool = False
+    num_workers: int = 4
+    seed: int = 42
+    resume: bool = False  # continue from outputs/runs/<run_name>/last.pt if it exists
+
+
+def seed_everything(seed: int) -> None:
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+
+def save_training_state(path: Path, model, optimizer, epoch: int, step: int, history: list,
+                        best_f1: float, best_epoch: int) -> None:
+    """Write everything needed to continue training; the temporary file makes the save atomic."""
+    state = {
+        "model": model.state_dict(), "optimizer": optimizer.state_dict(), "epoch": epoch, "step": step,
+        "history": history, "best_f1": best_f1, "best_epoch": best_epoch,
+        "rng": {"python": random.getstate(), "numpy": np.random.get_state(), "torch": torch.get_rng_state(),
+                "cuda": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None},
+    }
+    temporary = path.with_suffix(".tmp")
+    torch.save(state, temporary)
+    temporary.replace(path)
+
+
+def load_training_state(path: Path, model, optimizer) -> tuple[int, int, list, float, int]:
+    """Restore a ``last.pt``; return (next epoch, step, history, best F1, best epoch)."""
+    state = torch.load(path, map_location="cpu", weights_only=False)  # RNG states must stay on the CPU
+    model.load_state_dict(state["model"])
+    optimizer.load_state_dict(state["optimizer"])
+    random.setstate(state["rng"]["python"])
+    np.random.set_state(state["rng"]["numpy"])
+    torch.set_rng_state(state["rng"]["torch"])
+    if state["rng"]["cuda"] is not None and torch.cuda.is_available():
+        torch.cuda.set_rng_state_all(state["rng"]["cuda"])
+    return state["epoch"] + 1, state["step"], state["history"], state["best_f1"], state["best_epoch"]
+
+
+def _row(run: TrainConfig, metrics: dict, metrics_tta: dict | None, best_epoch: int, minutes: float) -> dict:
+    row = {
+        "run_name": run.run_name, "finished": datetime.now().strftime("%Y-%m-%d %H:%M"), "model": run.model,
+        "fold": run.fold, "label_policy": run.label_policy, "image_size": run.image_size, "epochs": run.epochs,
+        "best_epoch": best_epoch, "weighted_f1": round(metrics["weighted_f1"], 4),
+        "weighted_f1_tta": round(metrics_tta["weighted_f1"], 4) if metrics_tta else None,
+        "macro_f1": round(metrics["macro_f1"], 4), "accuracy": round(metrics["accuracy"], 4),
+    }
+    best = metrics_tta or metrics
+    row.update({f"f1_{c}": round(best["per_class"][c]["f1"], 3) for c in range(NUM_CLASSES)})
+    row["minutes"] = round(minutes, 1)
+    return row
+
+
+def run_experiment(run: TrainConfig, data_dir: Path) -> dict:
+    """Train on the fold's training part, select the best epoch on validation, evaluate, and save."""
+    started = time.time()
+    seed_everything(run.seed)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    amp_dtype = torch.bfloat16 if device.type == "cuda" and torch.cuda.is_bf16_supported() else None
+    torch.backends.cudnn.benchmark = True
+
+    output = RUNS_DIR / run.run_name
+    output.mkdir(parents=True, exist_ok=True)
+    (output / "config.json").write_text(json.dumps(asdict(run), indent=2) + "\n", encoding="utf-8")
+
+    preprocess = PreprocessConfig(image_size=run.image_size, denoise=run.denoise,
+                                  background_normalize=run.background_normalize)
+    loaders = build_dataloaders(
+        data_dir, fold=run.fold, batch_size=run.batch_size, image_size=run.image_size,
+        label_policy=run.label_policy, balance_power=run.balance_power, preprocess=preprocess,
+        augment=AugmentConfig() if run.augment else None, num_workers=run.num_workers, seed=run.seed,
+    )
+    print(f"[{run.run_name}] train {len(loaders.train_frame):,} | validation {len(loaders.validation_frame):,} "
+          f"| device {device} | amp {amp_dtype}", flush=True)
+
+    model = create_model(run.model, run.drop_path_rate).to(device)
+    weights = class_weights(loaders.train_frame["label"], run.class_weight_power) if run.class_weight_power else None
+    criterion = nn.CrossEntropyLoss(weight=None if weights is None else weights.to(device),
+                                    label_smoothing=run.label_smoothing)
+    optimizer = build_optimizer(model, run.lr, run.head_lr_multiplier, run.weight_decay)
+    total_steps = run.epochs * len(loaders.train)
+    warmup_steps = int(run.warmup_epochs * len(loaders.train))
+
+    history, best_f1, best_epoch, step, start_epoch = [], -1.0, 0, 0, 1
+    last_state = output / "last.pt"
+    if run.resume and last_state.exists():
+        start_epoch, step, history, best_f1, best_epoch = load_training_state(last_state, model, optimizer)
+        print(f"[{run.run_name}] resumed after epoch {start_epoch - 1} (best wF1 {best_f1:.4f} at epoch {best_epoch})",
+              flush=True)
+    elif run.resume:
+        print(f"[{run.run_name}] no last.pt found; starting from epoch 1", flush=True)
+    has_validation = len(loaders.validation_frame) > 0
+    for epoch in range(start_epoch, run.epochs + 1):
+        epoch_start = time.time()
+        train_loss, train_acc, step = train_one_epoch(
+            model, loaders.train, criterion, optimizer, device,
+            step=step, total_steps=total_steps, warmup_steps=warmup_steps, amp_dtype=amp_dtype,
+        )
+        record = {"epoch": epoch, "lr": optimizer.param_groups[0]["lr"], "train_loss": train_loss, "train_acc": train_acc}
+        if has_validation:
+            probs, labels, val_loss = predict(model, loaders.validation, device, amp_dtype=amp_dtype)
+            scores = compute_metrics(labels, probs.argmax(1))
+            record.update(val_loss=val_loss, val_weighted_f1=scores["weighted_f1"], val_macro_f1=scores["macro_f1"],
+                          val_acc=scores["accuracy"])
+            if scores["weighted_f1"] > best_f1:
+                best_f1, best_epoch = scores["weighted_f1"], epoch
+                torch.save(model.state_dict(), output / "best.pt")
+        record["seconds"] = round(time.time() - epoch_start, 1)
+        history.append(record)
+        pd.DataFrame(history).to_csv(output / "history.csv", index=False)
+        save_training_state(last_state, model, optimizer, epoch, step, history, best_f1, best_epoch)
+        print(f"[{run.run_name}] epoch {epoch:2d}/{run.epochs} loss {train_loss:.3f} acc {train_acc:.3f}"
+              + (f" | val loss {val_loss:.3f} wF1 {scores['weighted_f1']:.4f} acc {scores['accuracy']:.3f}"
+                 if has_validation else "") + f" | {record['seconds']:.0f}s", flush=True)
+
+    if not has_validation:  # fold = -1: final model trained on everything
+        torch.save(model.state_dict(), output / "best.pt")
+        best_epoch = run.epochs
+    model.load_state_dict(torch.load(output / "best.pt", map_location=device))
+
+    summary = {"run_name": run.run_name, "best_epoch": best_epoch}
+    metrics = metrics_tta = None
+    if has_validation:
+        probs, labels, _ = predict(model, loaders.validation, device, amp_dtype=amp_dtype)
+        metrics = compute_metrics(labels, probs.argmax(1))
+        plot_confusion(metrics["confusion_matrix"], f"{run.run_name} (epoch {best_epoch}) wF1 {metrics['weighted_f1']:.4f}",
+                       output / "confusion_matrix.png")
+        predictions = loaders.validation_frame[["id", "label", "original_label", "dup_group_size"]].copy()
+        if run.tta:
+            probs_tta, _, _ = predict(model, loaders.validation, device, tta=True, amp_dtype=amp_dtype)
+            metrics_tta = compute_metrics(labels, probs_tta.argmax(1))
+            plot_confusion(metrics_tta["confusion_matrix"], f"{run.run_name} + TTA wF1 {metrics_tta['weighted_f1']:.4f}",
+                           output / "confusion_matrix_tta.png")
+            probs = probs_tta
+        predictions["predicted"] = probs.argmax(1)
+        for c in range(NUM_CLASSES):
+            predictions[f"p{c}"] = probs[:, c].round(5)
+        predictions.to_csv(output / "val_predictions.csv", index=False)
+        summary.update(validation=metrics, validation_tta=metrics_tta)
+
+    if run.predict_test:
+        test_probs, _, _ = predict(model, loaders.test, device, tta=run.tta, amp_dtype=amp_dtype)
+        np.save(output / "test_probabilities.npy", test_probs.astype(np.float32))
+        pd.DataFrame({"id": loaders.test_frame["id"], "label": test_probs.argmax(1)}).to_csv(output / "submission.csv", index=False)
+
+    minutes = (time.time() - started) / 60
+    summary["minutes"] = round(minutes, 1)
+    (output / "metrics.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+    if metrics:
+        results = RUNS_DIR / "results.csv"
+        row = pd.DataFrame([_row(run, metrics, metrics_tta, best_epoch, minutes)])
+        row.to_csv(results, mode="a", header=not results.exists(), index=False)
+        report = metrics_tta or metrics
+        print(f"[{run.run_name}] best epoch {best_epoch}: weighted F1 {metrics['weighted_f1']:.4f}"
+              + (f" | with TTA {metrics_tta['weighted_f1']:.4f}" if metrics_tta else "")
+              + f" | {minutes:.1f} min", flush=True)
+        print("  per-class F1: " + ", ".join(f"{c}:{report['per_class'][c]['f1']:.2f}" for c in range(NUM_CLASSES)))
+    return summary

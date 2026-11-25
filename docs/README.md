@@ -12,5 +12,7 @@ Read the documents in number order. [00 · Start here](00_START_HERE.md) explain
 | 05 | [Augmentation and transforms](05_AUGMENTATION_AND_TRANSFORMS.md) |
 | 06 | [Sharing and loading data](06_SHARING_AND_LOADING_DATA.md) |
 | 07 | [Next steps](07_NEXT_STEPS.md) |
+| 08 | [Training and results](08_TRAINING_AND_RESULTS.md) |
+| 09 | [Model weights and reproduction](09_MODEL_WEIGHTS_AND_REPRODUCTION.md) |
 
-[SETUP.md](SETUP.md) is the short setup page. `figures/` holds the images used in these documents. [SPAGHETTI-1-Progress-Report.pdf](SPAGHETTI-1-Progress-Report.pdf) is the earlier progress report from the EDA phase.
+`figures/` holds the images used in these documents. [SPAGHETTI-1-Progress-Report.pdf](SPAGHETTI-1-Progress-Report.pdf) is the earlier progress report from the EDA phase.

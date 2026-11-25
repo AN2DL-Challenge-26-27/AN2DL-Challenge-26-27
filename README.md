@@ -2,7 +2,7 @@
 
 Classify 256 × 256 RGB galaxy images into 10 classes. Submissions are scored with **weighted F1**. The official data has 4,328 labelled training images and 14,736 test images. [Competition page](https://www.kaggle.com/competitions/an2dl2627)
 
-**Start with [docs/00_START_HERE.md](docs/00_START_HERE.md).** The documentation is numbered 00–07 in reading order.
+**Start with [docs/00_START_HERE.md](docs/00_START_HERE.md).** The documentation is numbered 00–09 in reading order.
 
 ## Quick start for teammates (Colab)
 
@@ -36,6 +36,11 @@ cp .env.example .env            # optional: paths, workers, seed (PowerShell: Co
 | 5 | `python -m spaghetti1 augment-preview` | Grid of augmented training images |
 | 6 | `python -m spaghetti1 export` | `outputs/export/spaghetti1_clean_v1.zip` for Google Drive |
 | 7 | `python -m spaghetti1 fetch --source <link or path>` | Downloaded, extracted, and verified package |
+| 8 | `python -m spaghetti1 train --run-name <name>` | Trained model and metrics in `outputs/runs/<name>/` (see [docs/08](docs/08_TRAINING_AND_RESULTS.md)) |
+| 9 | `python -m spaghetti1 evaluate --run-dir <run>` | Validation score of saved weights, without retraining |
+| 10 | `python -m spaghetti1 predict --run-dirs <run> ... --output-dir <dir>` | `submission.csv` from one model or an ensemble |
+| 11 | `python -m spaghetti1 export-weights` / `fetch-weights --source <link>` | Model-weights zip for Google Drive (see [docs/09](docs/09_MODEL_WEIGHTS_AND_REPRODUCTION.md)) |
+| 12 | `python -m spaghetti1 export-results` | Lightweight results snapshot in `results/` |
 
 ## What the preprocessing found
 
@@ -49,13 +54,25 @@ cp .env.example .env            # optional: paths, workers, seed (PowerShell: Co
 
 Evidence and alternatives: [docs/03_PREPROCESSING.md](docs/03_PREPROCESSING.md).
 
+## Results so far (fold 0 validation, weighted F1)
+
+| Model | Score |
+| --- | ---: |
+| ConvNeXt-Tiny 224 (baseline) | 0.836 |
+| ConvNeXt-Tiny 384, copies dropped | 0.847 |
+| ConvNeXt-Small 288, copies dropped, TTA | 0.847 |
+| Ensemble Tiny-224 + Tiny-384 + Small-288 | **0.856** |
+
+Details: [docs/08](docs/08_TRAINING_AND_RESULTS.md). Weights and reproduction without retraining: [docs/09](docs/09_MODEL_WEIGHTS_AND_REPRODUCTION.md).
+
 ## Repository layout
 
 ```text
-docs/           numbered documentation (00-07) and figures
+docs/           numbered documentation (00-09) and figures
 manifests/      train/test manifests with flags and CV folds (tracked; identical for everyone)
 notebooks/      01_load_preprocessed_data.ipynb (Colab entry point)
-spaghetti1/     Python package: ingestion/, eda/, preprocessing/, sharing/, config.py, __main__.py
+results/        configs, learning curves, metrics, confusion matrices, submissions of every run
+spaghetti1/     Python package: ingestion/, eda/, preprocessing/, sharing/, training/, config.py, __main__.py
 data/, outputs/ local only, ignored by git
 ```
 

@@ -1,0 +1,10 @@
+/data/
+/outputs/
+__pycache__/
+.venv/
+.env
+.env.*
+!/.env.example
+.kaggle/
+kaggle.json
+access_token

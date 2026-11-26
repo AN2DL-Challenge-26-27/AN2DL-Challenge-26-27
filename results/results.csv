@@ -1,7 +1,0 @@
-run_name,finished,model,fold,label_policy,image_size,epochs,best_epoch,weighted_f1,weighted_f1_tta,macro_f1,accuracy,f1_0,f1_1,f1_2,f1_3,f1_4,f1_5,f1_6,f1_7,f1_8,f1_9,minutes
-e0_convnext_tiny_original_fold0,2026-11-26 00:27,convnext_tiny.fb_in22k_ft_in1k,0,original,224,25,25,0.8356,0.8354,0.8306,0.8364,0.535,0.891,0.918,0.938,0.909,0.853,0.727,0.693,0.931,0.927,12.2
-e1_convnext_tiny_drop_copies_fold0,2026-11-26 00:36,convnext_tiny.fb_in22k_ft_in1k,0,drop_copies,224,25,23,0.8425,0.8441,0.8243,0.8447,0.514,0.903,0.928,0.938,0.87,0.849,0.78,0.701,0.94,0.935,8.0
-e1_convnext_tiny_as_given_fold0,2026-11-26 00:46,convnext_tiny.fb_in22k_ft_in1k,0,as_given,224,25,19,0.8363,0.8294,0.8188,0.8414,0.438,0.882,0.912,0.938,0.87,0.865,0.777,0.671,0.929,0.921,9.7
-e2_convnext_tiny_288_fold0,2026-11-26 01:05,convnext_tiny.fb_in22k_ft_in1k,0,drop_copies,288,30,19,0.8463,0.8326,0.828,0.8531,0.351,0.884,0.934,0.937,0.769,0.859,0.8,0.689,0.931,0.945,11.5
-e2_convnext_tiny_384_fold0,2026-11-26 01:25,convnext_tiny.fb_in22k_ft_in1k,0,drop_copies,384,30,23,0.8472,0.8455,0.8349,0.8497,0.535,0.905,0.908,0.932,0.8,0.866,0.752,0.719,0.97,0.943,19.5
-e3_convnext_small_288_fold0,2026-11-26 01:43,convnext_small.fb_in22k_ft_in1k,0,drop_copies,288,30,23,0.841,0.8473,0.836,0.8414,0.597,0.899,0.922,0.945,0.8,0.855,0.786,0.713,0.911,0.926,18.7

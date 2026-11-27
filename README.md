@@ -58,16 +58,19 @@ cp .env.example .env            # optional: paths, workers, seed (PowerShell: Co
 
 Evidence and alternatives: [docs/03_PREPROCESSING.md](docs/03_PREPROCESSING.md).
 
-## Results so far (fold 0 validation, weighted F1)
+## Results so far
 
-| Model | Score |
-| --- | ---: |
-| ConvNeXt-Tiny 224 (baseline) | 0.836 |
-| ConvNeXt-Tiny 384, copies dropped | 0.847 |
-| ConvNeXt-Small 288, copies dropped, TTA | 0.847 |
-| Ensemble Tiny-224 + Tiny-384 + Small-288 | **0.856** |
+| Submission | Fold-0 validation | Kaggle public |
+| --- | ---: | ---: |
+| ConvNeXt Tiny-224 + Tiny-384 + Small-288 | 0.856 | 0.8371 |
+| DINOv2-Base 336 alone | 0.851 | 0.8321 |
+| DINOv3 ViT-B/16 384 alone | 0.832 | 0.8253 |
+| ConvNeXt Tiny-384 + Small-288 + DINOv2 | 0.860 | 0.8424 |
+| **3 ConvNeXt + DINOv2 + DINOv3** | 0.855 (test-like 0.861) | **0.8441** |
 
-Details: [docs/08](docs/08_TRAINING_AND_RESULTS.md). Weights and reproduction without retraining: [docs/09](docs/09_MODEL_WEIGHTS_AND_REPRODUCTION.md). Next experiments after the research review: [docs/10](docs/10_RESEARCH_REVIEW_AND_PLAN.md).
+The best single model is DINOv2 (0.852 on validation). DINOv3 is the most robust to the test images' corruptions. Next: 5-fold training of DINOv2 and DINOv3 in Google Colab.
+
+Details: [docs/08](docs/08_TRAINING_AND_RESULTS.md) (training, all results), [docs/10](docs/10_RESEARCH_REVIEW_AND_PLAN.md) (research review, DINOv2/DINOv3, leaderboard lessons), [docs/09](docs/09_MODEL_WEIGHTS_AND_REPRODUCTION.md) (weights and reproduction without retraining).
 
 ## Repository layout
 
@@ -77,7 +80,7 @@ manifests/      train/test manifests with flags and CV folds (tracked; identical
 notebooks/      01_load_preprocessed_data.ipynb (Colab entry point), 02_kaggle_training.ipynb (Kaggle), 03_colab_training.ipynb (Colab)
 results/        configs, learning curves, metrics, confusion matrices, submissions of every run
 configs/        one .env-format file per experiment + shared recipes (see configs/README.md)
-experiments/    scripts for planned experiment rounds
+experiments/    GPU temperature guard, cloud queue, ensemble and robustness scripts
 spaghetti1/     Python package: ingestion/, eda/, preprocessing/, sharing/, training/, config.py, __main__.py
 data/, outputs/ local only, ignored by git
 ```

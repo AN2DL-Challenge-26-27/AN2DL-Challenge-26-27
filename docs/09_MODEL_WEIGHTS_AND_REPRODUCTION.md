@@ -6,28 +6,26 @@ Every trained model is shared as **one zip file on Google Drive**, next to the i
 
 Code: [spaghetti1/training/predict.py](../spaghetti1/training/predict.py) (evaluate and predict) and [spaghetti1/sharing/weights.py](../spaghetti1/sharing/weights.py) (pack, fetch, verify).
 
-> **Update 2026-11-27: `spaghetti1_weights_v2.zip` (1.67 GB) supersedes v1.** It contains all 10 fold-0 runs: the six below plus R1, R2 (DINOv2), N1, and N2 (DINOv3), with their saved validation and test probabilities. It also records the three ensembles with Kaggle scores (best: 0.8441). Paths in the commands below then read `spaghetti1_weights_v2`. The model list is in the package's `WEIGHTS_CARD.md`.
-
 ## What is shared where
 
 | Item | Where | Size |
 | --- | --- | ---: |
 | Cleaned images + manifests (`spaghetti1_clean_v1.zip`) | Google Drive | 2.6 GB |
-| Model weights (`spaghetti1_weights_v1.zip`) | Google Drive | 756 MB |
+| Model weights (`spaghetti1_weights_v2.zip`, all 10 fold-0 models; replaces v1 with 6) | Google Drive | 1.67 GB |
 | Code, docs, manifests | GitHub | small |
-| Lightweight results: configs, learning curves, metrics, confusion matrices, validation predictions, submissions | GitHub, [results/](../results/) | 1.6 MB |
+| Lightweight results: configs, learning curves, metrics, confusion matrices, validation predictions, submissions | GitHub, [results/](../results/) | ~4 MB |
 
-## The weights package: `spaghetti1_weights_v1.zip`
+## The weights package: `spaghetti1_weights_v2.zip`
 
 ```text
-spaghetti1_weights_v1/
+spaghetti1_weights_v2/
 ├── weights_info.json     # per model: backbone, input size, fold, label policy, validation scores, SHA-256 of best.pt
 ├── WEIGHTS_CARD.md       # short description of every model and how to use it
 └── runs/<run_name>/
     ├── best.pt           # weights (PyTorch state_dict) of the best validation epoch
-    ├── config.json       # every training setting: rebuilds the network and its exact preprocessing
+    ├── config.json, config.env   # every training setting: rebuilds the network and its exact preprocessing
     ├── metrics.json, history.csv, val_predictions.csv
-    └── test_probabilities.npy   # only for runs that predicted the test set during training
+    └── val_probabilities*.npy, test_probabilities.npy   # where saved (newer runs)
 ```
 
 | Run folder | Backbone | Input | Label policy | Val wF1 | + TTA |
@@ -38,15 +36,19 @@ spaghetti1_weights_v1/
 | `e2_convnext_tiny_288_fold0` | ConvNeXt-Tiny | 288 | drop_copies | 0.846 | 0.833 |
 | `e2_convnext_tiny_384_fold0` | ConvNeXt-Tiny | 384 | drop_copies | 0.847 | 0.846 |
 | `e3_convnext_small_288_fold0` | ConvNeXt-Small | 288 | drop_copies | 0.841 | 0.847 |
+| `r1_convnext_tiny_224_recipe_fold0` | ConvNeXt-Tiny | 224 | drop_copies, research recipe | 0.831 | 0.828 |
+| `r2_dinov2_base_336_recipe_fold0` | DINOv2-Base/14 | 336 | drop_copies, research recipe | **0.852** | 0.839 |
+| `n1_dinov3_convnext_tiny_288_fold0` | DINOv3 ConvNeXt-Tiny | 288 | drop_copies | 0.840 | 0.833 |
+| `n2_dinov3_base_384_recipe_fold0` | DINOv3 ViT-B/16 | 384 | drop_copies, research recipe | 0.832 | 0.843 |
 
-All models are trained on CV fold 0 and scored on its 599 originals and unique images. The backbones are general-purpose ImageNet-pretrained `timm` models (`convnext_tiny.fb_in22k_ft_in1k`, `convnext_small.fb_in22k_ft_in1k`), as the competition rules require. `last.pt` (the optimizer state for resuming training) is not included. It is three times larger and is not needed to evaluate or predict.
+All models are trained on CV fold 0 and scored on its 599 originals and unique images. The backbones are general-purpose pretrained `timm` models (ImageNet-22k ConvNeXt, DINOv2 LVD-142M, DINOv3 LVD-1689M web images), as the competition rules require. `last.pt` (the optimizer state for resuming training) is not included. It is three times larger and is not needed to evaluate or predict.
 
-**Best validated combination:** the average of the TTA probabilities of `e1_convnext_tiny_drop_copies_fold0` + `e2_convnext_tiny_384_fold0` + `e3_convnext_small_288_fold0`, validation weighted F1 **0.856**.
+**Best combination on Kaggle (0.8441):** `e1_convnext_tiny_drop_copies_fold0` + `e2_convnext_tiny_384_fold0` + `e3_convnext_small_288_fold0` (TTA probabilities) + `r2_dinov2_base_336_recipe_fold0` + `n2_dinov3_base_384_recipe_fold0` (probabilities without TTA). Validation 0.855, test-like validation 0.861. `weights_info.json` records this and the two other Kaggle-scored ensembles.
 
 ## A · Uploading (done once)
 
 ```bash
-python -m spaghetti1 export-weights      # -> outputs/export/spaghetti1_weights_v1.zip (about 10 seconds)
+python -m spaghetti1 export-weights      # -> outputs/export/spaghetti1_weights_v2.zip (about 10 seconds)
 ```
 
 Upload the zip to the same Google Drive folder as `spaghetti1_clean_v1.zip` and share it the same way (see [06](06_SHARING_AND_LOADING_DATA.md)). After new runs, pass them with `--runs <folder> ...` and `--version v2`.
@@ -54,15 +56,15 @@ Upload the zip to the same Google Drive folder as `spaghetti1_clean_v1.zip` and 
 ## B · Getting the weights
 
 ```bash
-python -m spaghetti1 fetch-weights --source "<Drive link, or path to spaghetti1_weights_v1.zip>"
+python -m spaghetti1 fetch-weights --source "<Drive link, or path to spaghetti1_weights_v2.zip>"
 ```
 
-The weights land in `data/weights/spaghetti1_weights_v1/` locally (ignored by git) or `/content/spaghetti1_weights/spaghetti1_weights_v1/` on Colab. Every `best.pt` is checked against its SHA-256, and running the command again reuses a verified copy. The same three source types as the dataset work: Drive link, zip on a mounted Drive, or an extracted folder. You also need the dataset itself (`fetch`, or the raw Kaggle data in `data/raw`).
+The weights land in `data/weights/spaghetti1_weights_v2/` locally (ignored by git) or `/content/spaghetti1_weights/spaghetti1_weights_v2/` on Colab. Every `best.pt` is checked against its SHA-256, and running the command again reuses a verified copy. The same three source types as the dataset work: Drive link, zip on a mounted Drive, or an extracted folder. You also need the dataset itself (`fetch`, or the raw Kaggle data in `data/raw`).
 
 ## C · Checking a reported score (no training)
 
 ```bash
-python -m spaghetti1 evaluate --run-dir data/weights/spaghetti1_weights_v1/runs/e1_convnext_tiny_drop_copies_fold0
+python -m spaghetti1 evaluate --run-dir data/weights/spaghetti1_weights_v2/runs/e1_convnext_tiny_drop_copies_fold0
 ```
 
 The command rebuilds the network from `config.json`, loads `best.pt`, scores the run's validation fold with the same preprocessing, and prints the new score next to the one recorded during training. Add `--no-tta` for the plain score. No internet access is needed; the pretrained ImageNet weights are not downloaded again.
@@ -72,12 +74,12 @@ Verified on 2026-11-26 (CPU): `e1_convnext_tiny_drop_copies_fold0` gives 0.8441 
 ## D · Creating a submission from the weights (no training)
 
 ```bash
-W=data/weights/spaghetti1_weights_v1/runs
+W=data/weights/spaghetti1_weights_v2/runs
 python -m spaghetti1 predict --output-dir outputs/submissions/best_ensemble --run-dirs \
     $W/e1_convnext_tiny_drop_copies_fold0 $W/e2_convnext_tiny_384_fold0 $W/e3_convnext_small_288_fold0
 ```
 
-(PowerShell: `$W = "data/weights/spaghetti1_weights_v1/runs"`, and write the arguments on one line.)
+(PowerShell: `$W = "data/weights/spaghetti1_weights_v2/runs"`, and write the arguments on one line.)
 
 `predict` writes into the output folder:
 
@@ -107,17 +109,22 @@ from spaghetti1.training.predict import load_run
 from spaghetti1.preprocessing.transforms import GalaxyTransform, PreprocessConfig
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model, config = load_run("data/weights/spaghetti1_weights_v1/runs/e2_convnext_tiny_384_fold0", device)
+model, config = load_run("data/weights/spaghetti1_weights_v2/runs/e2_convnext_tiny_384_fold0", device)
 transform = GalaxyTransform(PreprocessConfig(image_size=config["image_size"]), None)   # evaluation transform
 # probabilities = model(transform(pixels)[None].to(device)).softmax(1)   # pixels: uint8 (256, 256, 3)
 ```
 
 ## Submissions made so far
 
-| Folder in `results/submissions/` | Models | Val wF1 | Notes |
-| --- | --- | ---: | --- |
-| `e0_convnext_tiny_original_fold0` | ConvNeXt-Tiny 224, label policy `original` | 0.836 | First baseline |
-| `ensemble_tiny224_tiny384` | ConvNeXt-Tiny 224 + 384 (copies dropped), TTA | 0.846 | Best file available so far |
-| `ensemble_tiny224_tiny384_small288` | + ConvNeXt-Small 288, TTA | 0.856 | Created 2026-11-27 after the GPU restart |
+All files are in `results/submissions/` (with `ensemble_info.json` and, on Drive, the members' probabilities). Rebuild ensembles from saved probabilities with `experiments/combine_submissions.py`.
 
-The third model's test predictions could not be made on the training laptop: Windows blocked GPU access after the long training session ("GPU access blocked by the operating system"). After a restart, or on Colab, command D creates this file in about 6 minutes, reusing the cached predictions of the other two models if they are in the same output folder.
+| Folder | Models | Val wF1 | Kaggle public |
+| --- | --- | ---: | ---: |
+| `lb1_d_5models_convnext3_dinov2_dinov3` | 3 ConvNeXt + DINOv2 + DINOv3 | 0.855 (test-like 0.861) | **0.8441** |
+| `lb1_c_tiny384_small288_dinov2` | ConvNeXt Tiny-384 + Small-288 + DINOv2 | 0.860 | 0.8424 |
+| `lb1_b_4models_convnext3_dinov2` | 3 ConvNeXt + DINOv2 | 0.859 | 0.8410 |
+| `ensemble_tiny224_tiny384_small288` | 3 ConvNeXt (TTA) | 0.856 | 0.8371 |
+| `lb1_a_dinov2_alone` | DINOv2-Base 336 | 0.851 | 0.8321 |
+| `n2_dinov3_base_384_recipe_fold0` | DINOv3 ViT-B/16 384 | 0.832 | 0.8253 |
+| `ensemble_tiny224_tiny384` | ConvNeXt Tiny-224 + Tiny-384 (TTA) | 0.846 | |
+| `e0_convnext_tiny_original_fold0` | ConvNeXt-Tiny 224 baseline | 0.836 | |

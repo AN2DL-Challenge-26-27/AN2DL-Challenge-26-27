@@ -37,9 +37,24 @@ For E1, also report F1 on the 2/3 and 5/6 classes separately. That is where the 
 * Performance on test-like corruptions: evaluate validation images with augmentation turned on as a robustness check.
 * The two blank test frames (test_13385, test_13646): they get whatever the model predicts. That is 2 of 14,736 rows and not worth special handling.
 
-## Status (2026-11-26)
+## Status (2026-11-27)
 
-Done: E0 (baseline), E1 (label policies), resolution 288/384, ConvNeXt-Small, TTA, and a first 3-model ensemble (see [08](08_TRAINING_AND_RESULTS.md)). Everything in the revised plan below is still open. The plan was refined after an external research review; the current order is in [10](10_RESEARCH_REVIEW_AND_PLAN.md).
+Done:
+
+* E0 (baseline), E1 (label policies), resolution 288/384, ConvNeXt-Small, TTA;
+* the research recipe (R1, R2), DINOv2 (R2), DINOv3 (N1, N2);
+* the robustness check, and six leaderboard submissions (best 0.8441).
+
+Results are in [08](08_TRAINING_AND_RESULTS.md); the reasoning and leaderboard lessons are in [10](10_RESEARCH_REVIEW_AND_PLAN.md).
+
+Open, in this order:
+
+1. 5-fold DINOv2 and 5-fold DINOv3, in Colab (prepared, see [11](11_CLOUD_TRAINING.md)).
+2. Out-of-fold ensemble selection by clean and test-like validation.
+3. Calibration and per-class multipliers.
+4. Pseudo-labelling.
+
+The plan below is the older version, kept for reference.
 
 ## Revised plan after the first results (2026-11-26)
 

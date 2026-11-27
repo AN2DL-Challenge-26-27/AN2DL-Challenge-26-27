@@ -8,9 +8,10 @@ configs/
 │   └── research_v2.env        # shared training recipe (loss, MixUp, EMA, drop path, ...)
 └── experiments/
     ├── _template.env          # copy this to start a new experiment
-    ├── e0_..._fold0.env ...   # the six runs reported in docs/08 (re-runnable)
-    ├── r1_convnext_tiny_224_recipe_fold0.env
-    └── r2_dinov2_base_336_recipe_fold0.env
+    ├── e0_..._fold0.env ...   # the six ConvNeXt runs reported in docs/08 (re-runnable)
+    ├── r1_..., r2_..._fold0.env          # research recipe: ConvNeXt-Tiny, DINOv2 (docs/10)
+    ├── n1_..., n2_..._fold0.env          # DINOv3 ConvNeXt-Tiny and ViT-B (docs/10)
+    └── r2_..._fold1-4.env, n2_..._fold1-4.env   # 5-fold plan (inherit fold 0, change FOLD; docs/11)
 ```
 
 ## Use
@@ -28,7 +29,7 @@ python -m spaghetti1 train --config configs/experiments/r2_dinov2_base_336_recip
 
 * **Keys** are the `TrainConfig` field names in upper case (`IMAGE_SIZE`, `LAYER_DECAY`, ...); see `spaghetti1/training/config.py`. An unknown key (a typo) stops the run with the list of valid keys.
 * **`BASE=<path>`** inherits another file (path relative to this file), for example `BASE=../recipes/research_v2.env`. Inheritance can be chained; later files win.
-* **`MODEL=`** is a preset (`convnext_tiny`, `convnext_small`, `convnextv2_tiny`, `efficientnetv2_s`, `swin_base_384`, `dinov2_base`, `eva02_base`) or any `timm` model name. A preset also sets suitable defaults for that backbone (input size, batch size, ...).
+* **`MODEL=`** is a preset (`convnext_tiny`, `convnext_small`, `convnextv2_tiny`, `efficientnetv2_s`, `swin_base_384`, `dinov2_base`, `dinov3_base`, `dinov3_convnext_tiny`, `eva02_base`) or any `timm` model name. A preset also sets suitable defaults for that backbone (input size, batch size, ...).
 * **The run is named after the file** unless `RUN_NAME=` is set. Results go to `outputs/runs/<run name>/`.
 * **Precedence**, lowest to highest: `TrainConfig` defaults → project `.env` (`SPAGHETTI_NUM_WORKERS`) → model preset → `BASE` file(s) → this file → command-line flags.
 * Comments (`#`) are allowed on their own line and after a value.

@@ -28,7 +28,9 @@ python -m spaghetti1 train --config configs/experiments/r2_dinov2_base_336_recip
 | `convnextv2_tiny` | `convnextv2_tiny.fcmae_ft_in22k_in1k` | 288 px, batch 32 | no |
 | `efficientnetv2_s` | `tf_efficientnetv2_s.in21k_ft_in1k` | 288 px, batch 32 | no |
 | `swin_base_384` | `swin_base_patch4_window12_384.ms_in22k_ft_in1k` | 384 px, batch 8 × 4, gradient checkpointing | no |
-| `dinov2_base` | `vit_base_patch14_reg4_dinov2.lvd142m` | 336 px, batch 8 × 4, gradient checkpointing, LR 2e-4, layer decay 0.75 | no (R2) |
+| `dinov2_base` | `vit_base_patch14_reg4_dinov2.lvd142m` | 336 px, batch 8 × 4, gradient checkpointing, LR 2e-4, layer decay 0.75 | yes (R2) |
+| `dinov3_base` | `vit_base_patch16_dinov3.lvd1689m` | 384 px, batch 8 × 4, gradient checkpointing, LR 2e-4, layer decay 0.75 | yes (N2) |
+| `dinov3_convnext_tiny` | `convnext_tiny.dinov3_lvd1689m` | 288 px, batch 32 | yes (N1) |
 | `eva02_base` | `eva02_base_patch14_448.mim_in22k_ft_in22k_in1k` | 336 px, batch 8 × 4, gradient checkpointing, LR 2e-4, layer decay 0.75 | no |
 
 All presets are general-purpose pretrained models, as the rules require. To add a model, add one entry to `MODEL_PRESETS` in [models.py](../spaghetti1/training/models.py), or simply write its `timm` name in `MODEL=`.
@@ -97,6 +99,10 @@ Each result on this page has its config file in `configs/experiments/` (they res
 | E3 | `e3_convnext_small_288_fold0.env` |
 | R1 | `r1_convnext_tiny_224_recipe_fold0.env` |
 | R2 | `r2_dinov2_base_336_recipe_fold0.env` |
+| N1 | `n1_dinov3_convnext_tiny_288_fold0.env` |
+| N2 | `n2_dinov3_base_384_recipe_fold0.env` |
+
+For the 5-fold plan, `r2_dinov2_base_336_recipe_fold1.env` … `fold4.env` and `n2_dinov3_base_384_recipe_fold1.env` … `fold4.env` inherit from their fold-0 file and change only `FOLD`. The Colab and Kaggle notebooks use them (see 11).
 
 Retraining gives very close but not bit-identical numbers (GPU non-determinism). To use the exact trained models, load the shared weights instead ([09](09_MODEL_WEIGHTS_AND_REPRODUCTION.md)).
 
@@ -133,8 +139,13 @@ With 599 images, differences below about 1.5 points are within noise.
 | E3 | ConvNeXt-Small | 288 | drop_copies | 0.841 | **0.847** | 0.60 | 0.79 | 0.71 |
 | R1 | ConvNeXt-Tiny | 224 | drop_copies, research recipe | 0.831 | 0.828 | 0.39 | 0.75 | 0.70 |
 | R2 | DINOv2-Base | 336 | drop_copies, research recipe | **0.852** | 0.839 | 0.38 | 0.81 | 0.72 |
+| N1 | DINOv3 ConvNeXt-Tiny | 288 | drop_copies | 0.840 | 0.833 | 0.52 | 0.76 | 0.66 |
+| N2 | DINOv3 ViT-B/16 | 384 | drop_copies, research recipe | 0.832 | 0.843 | 0.43 | 0.77 | 0.69 |
 | Ensemble | E1a + E2b + E3 (average of TTA probabilities) | | | | 0.856 | 0.57 | 0.78 | 0.70 |
 | Ensemble | E1a + E2b + E3 + R2 | | | | **0.859** | 0.59 | 0.78 | 0.72 |
+| Ensemble | E1a + E2b + E3 + R2 + N2 (best on Kaggle: 0.8441) | | | | 0.855 (test-like 0.861) | | | |
+
+In the ensembles, ConvNeXt members use their TTA probabilities; DINOv2 and DINOv3 use probabilities without TTA.
 
 ### Findings
 
@@ -147,12 +158,15 @@ With 599 images, differences below about 1.5 points are within noise.
 6. **Resolution and backbone (E2, E3):** every single model lands at 0.84–0.85. Larger images (288, 384) and ConvNeXt-Small do not clearly beat ConvNeXt-Tiny at 224 on this fold; the differences are within noise. ConvNeXt-Small fits the training set almost perfectly (training accuracy 0.97) and overfits more.
 7. **Ensembling different models works:** averaging Tiny-224, Tiny-384, and Small-288 gives 0.856 (+1 point over the best single model).
 8. **Shared errors:** the models make mostly the same mistakes (75 of 107 errors are shared by Tiny-384 and Small-288). Even counting an image as correct when *any* of the six models gets it right gives only 0.90, so about 10% of validation images are wrong for every model. Many of these look ambiguous or mislabelled.
+9. **Research recipe (R1, R2):** MixUp, EMA, layer-wise LR decay, and no class weights did not help ConvNeXt (0.831 vs 0.843) but work well for DINOv2. DINOv2 is the best single model (0.852) and the strongest on tight spirals.
+10. **DINOv3 (N1, N2):** lower on clean validation (0.832–0.840) but by far the most robust to test-like corruptions (−0.1 to −0.9 points vs −1.0 to −2.8 for the others). On Kaggle it lost only 0.7 points from validation, while the other models lost about 1.8.
+11. **Test-like validation:** scoring the validation images with test-like corruptions tracks the leaderboard better than clean validation. It correctly predicted that adding DINOv3 helps (Kaggle 0.8424 → 0.8441).
 
 ### Conclusions so far
 
-* A single fine-tuned ImageNet model plateaus at about 0.845 on fold 0.
-* The gains left must come from diversity and data: ensembles of different architectures over all 5 folds, stronger regularisation (EMA, MixUp/CutMix) for the larger models, and pseudo-labelling of the 14,736 test images.
-* With only 599 validation images, the next comparisons should use out-of-fold predictions over all 5 folds (about 3,000 images) to be reliable.
+* Single models plateau at about 0.84–0.85 on fold 0. The gains come from diversity (ConvNeXt + DINOv2 + DINOv3) and from robustness to the test corruptions.
+* Choose models and ensembles by **clean and test-like validation together**.
+* With only 599 validation images, the next comparisons should use out-of-fold predictions over all 5 folds (about 3,000 images). 5-fold DINOv2 and DINOv3 runs are prepared for Colab (see 11).
 
 ## What has been implemented and tested (summary)
 
@@ -165,9 +179,14 @@ With 599 images, differences below about 1.5 points are within noise.
 | Backbones | ConvNeXt-Tiny, ConvNeXt-Small (ImageNet-22k pretrained, `timm`) | E0–E3 | Single models plateau at about 0.845 |
 | Input size | 224, 288, 384 px | E1a, E2a, E2b | No clear gain on fold 0 |
 | Test-time augmentation | 8-way rotation/flip averaging | Every run | −1.3 to +0.6 points; not reliable alone |
-| Ensembling | Average of class probabilities | Fold-0 validation | **+1 point** (0.856 with three models) |
+| Ensembling | Average of class probabilities | Fold-0 validation and Kaggle | +1 point on validation; best Kaggle 0.8441 with five models |
 | Reproduction | `evaluate` / `predict` from saved weights, weights package with checksums | CPU re-scoring | TTA score reproduced exactly (0.8441); see 09 |
-| Not yet tested | EMA, MixUp, layer-wise LR decay, DINOv2/EVA-02, 5-fold training, pseudo-labelling, class-weight and threshold tuning | | Planned in 10 (research review) |
+| Research recipe | EMA, MixUp (no CutMix), layer-wise LR decay, unweighted loss | R1, R2 | No gain on ConvNeXt; used for DINOv2 and DINOv3 |
+| Newer backbones | DINOv2-Base, DINOv3 ViT-B and ConvNeXt-Tiny | R2, N1, N2 | DINOv2 best single model; DINOv3 most robust, helps the ensemble on Kaggle |
+| Robustness validation | Validation images with test-like corruptions (`experiments/robustness_check.py`) | All models, ensembles | Tracks the leaderboard better than clean validation |
+| Cloud training | Colab and Kaggle notebooks, multi-GPU queue, float16 for T4, result and weight exports | End to end on the laptop GPU in float16 | Not yet run on Colab or Kaggle |
+| GPU temperature guard | Pauses training at 82 °C, resumes at 72 °C | All laptop runs since R1 | GPU never above 84 °C; about 2× longer runs |
+| Not yet tested | 5-fold training (prepared), calibration and per-class multipliers, pseudo-labelling, EVA-02 or ConvNeXt-V2 | | Planned in 10 |
 
 ## Submissions
 
@@ -184,4 +203,4 @@ With 599 images, differences below about 1.5 points are within noise.
 
 **Validation vs leaderboard (2026-11-27).** The 3-model ensemble scored 0.8371 on the public leaderboard, 1.9 points below its fold-0 validation score. The test set shows the same predicted class mix as validation (no class or label-convention shift), but the models are slightly less confident on test images (mean top probability 0.813 vs 0.829), most of all on images least similar to the training set. The likely causes are: selection of epochs and ensemble on the same 599 images (optimistic), validation noise (±1.5 points), mild test-domain shift, and fold-0 models trained on 80% of the data. Expect leaderboard scores about 2 points below fold-0 validation; 5-fold out-of-fold scores, full-data models, and pseudo-labelling are the planned remedies (see 10).
 
-How to recreate every number and file from the shared weights is described in [09 · Model weights and reproduction](09_MODEL_WEIGHTS_AND_REPRODUCTION.md). The improvement plan (EMA, multi-architecture 5-fold ensemble, pseudo-labelling, per-class probability tuning) is in [07 · Next steps](07_NEXT_STEPS.md).
+How to recreate every number and file from the shared weights is described in [09 · Model weights and reproduction](09_MODEL_WEIGHTS_AND_REPRODUCTION.md). The current plan is in [10 · Research review and plan](10_RESEARCH_REVIEW_AND_PLAN.md), and the cloud training setup in [11 · Training in the cloud](11_CLOUD_TRAINING.md).

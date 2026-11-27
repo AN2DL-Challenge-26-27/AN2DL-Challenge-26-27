@@ -1,6 +1,6 @@
 # Experiment results (snapshot)
 
-Lightweight outputs of every training run, kept in git so results can be inspected without the model weights. The weights themselves are in `spaghetti1_weights_v1.zip` on Google Drive (see [docs/09](../docs/09_MODEL_WEIGHTS_AND_REPRODUCTION.md)). Explanations and conclusions are in [docs/08](../docs/08_TRAINING_AND_RESULTS.md).
+Lightweight outputs of every training run, kept in git so results can be inspected without the model weights. The weights themselves are in `spaghetti1_weights_v2.zip` (all 10 fold-0 models) on Google Drive (see [docs/09](../docs/09_MODEL_WEIGHTS_AND_REPRODUCTION.md)). Explanations and conclusions are in [docs/08](../docs/08_TRAINING_AND_RESULTS.md).
 
 | Path | Contents |
 | --- | --- |

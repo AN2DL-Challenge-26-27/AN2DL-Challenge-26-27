@@ -119,10 +119,15 @@ Share of errors also made by the other model, as a fraction of the smaller error
 
 ## Status
 
-| Run | Status | Weighted F1 | + TTA |
-| --- | --- | ---: | ---: |
-| R1 | Done | 0.831 | 0.828 |
-| R2 | Done | 0.852 | 0.839 |
+| Run | Status | Weighted F1 | + TTA | Kaggle (alone) |
+| --- | --- | ---: | ---: | ---: |
+| R1 | Done | 0.831 | 0.828 | |
+| R2 | Done | 0.852 | 0.839 | 0.8321 |
+| N1 | Done | 0.840 | 0.833 | |
+| N2 | Done | 0.832 | 0.843 | 0.8253 |
+| 5-fold DINOv2 / DINOv3 | Prepared for Colab (notebook 03, see 11) | | | |
+
+**Best Kaggle score: 0.8441** (`lb1_d_5models_convnext3_dinov2_dinov3`, see the last section).
 
 ## Leaderboard round 1 (2026-11-27)
 
@@ -142,9 +147,9 @@ File A answers whether one DINOv2 model generalises better than the ConvNeXt ens
 * **Validation ranks submissions correctly.** All four files have the same order on the leaderboard as on fold-0 validation, with a nearly constant gap of 1.7–1.9 points. Local validation can therefore be used to choose between models; the leaderboard is only needed to confirm.
 * **Model diversity pays off on the test set.** Adding DINOv2 to ConvNeXt raised the leaderboard from 0.8371 to 0.8424 (+0.5), although DINOv2 alone (0.8321) is weaker than the ConvNeXt ensemble.
 * **The constant gap of about 1.8 points is structural:** it does not depend on the model. Likely causes are training on 80% of the data (fold-0 models) and a mild test-domain shift.
-* **Best file so far:** `lb1_c_tiny384_small288_dinov2`, 0.8424.
+* **Best file at that point:** `lb1_c_tiny384_small288_dinov2`, 0.8424; later beaten by adding DINOv3 (0.8441, see below).
 
-**Next:** 5-fold training of DINOv2 and ConvNeXt-Tiny-384 (models that together see all training data, fold ensembles, out-of-fold scores), then a third family (EVA-02 or ConvNeXt-V2), then pseudo-labelling to attack the gap.
+**Next (as planned at that point):** 5-fold training of DINOv2 and ConvNeXt-Tiny-384, then a third family, then pseudo-labelling. The current plan, after the DINOv3 results, is at the end of this page.
 
 ## Newer models: DINOv3 (2025), fold 0
 

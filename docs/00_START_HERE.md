@@ -2,6 +2,22 @@
 
 SPAGHETTI-1 is our team's solution to the AN2DL 2026/27 Kaggle challenge: classify 256 × 256 galaxy images into 10 classes, scored with **weighted F1**. This page explains how the repository is organised and in which order to read it.
 
+## Current status (2026-11-27)
+
+| | |
+| --- | --- |
+| Best Kaggle public score | **0.8441**: 3 ConvNeXt + DINOv2 + DINOv3, `results/submissions/lb1_d_5models_convnext3_dinov2_dinov3/` |
+| Best single model | DINOv2-Base 336 (fold-0 validation 0.852, Kaggle 0.8321) |
+| Most robust model | DINOv3 ViT-B/16 384 (validation 0.832, but only 0.7 points lower on Kaggle: 0.8253) |
+| Trained so far | 10 fold-0 runs (ConvNeXt, DINOv2, DINOv3); weights in `spaghetti1_weights_v2.zip` on the team Drive (see 09) |
+| Next | 5-fold DINOv2, then 5-fold DINOv3, in Google Colab (notebook 03, see 11); then the final fold ensemble |
+
+Lessons so far:
+
+* Mixing model families helps; more resolution or a bigger ConvNeXt does not.
+* The leaderboard is about 1.8 points below clean fold-0 validation.
+* "Test-like" validation (validation images with test-like corruptions) tracks the leaderboard better; choose ensembles by both scores (see 10).
+
 ## Reading order
 
 Read the documents in number order. Each one builds on the previous one.
@@ -21,7 +37,7 @@ Read the documents in number order. Each one builds on the previous one.
 | 10 | [Research review and plan](10_RESEARCH_REVIEW_AND_PLAN.md) | External deep-research findings checked against our data, and the experiments chosen next |
 | 11 | [Training in the cloud](11_CLOUD_TRAINING.md) | Running experiment queues on Google Colab or Kaggle and bringing the results back |
 
-If you only want to train a model, read 00, 03 (summary table only), and 06. Then open [notebooks/01_load_preprocessed_data.ipynb](../notebooks/01_load_preprocessed_data.ipynb).
+If you only want to train a model, read 00, 03 (summary table only), and 06, then open [notebooks/01_load_preprocessed_data.ipynb](../notebooks/01_load_preprocessed_data.ipynb). To train in Google Colab, read 11 and use [notebooks/03_colab_training.ipynb](../notebooks/03_colab_training.ipynb).
 
 ## Repository map
 
@@ -33,9 +49,11 @@ If you only want to train a model, read 00, 03 (summary table only), and 06. The
 │   └── preprocessing_summary.json
 ├── results/                    # lightweight results of every run + submission files (tracked in git)
 ├── configs/                    # experiment config files (.env format) and shared recipes
-├── experiments/                # scripts for planned experiment rounds (e.g. research_round1.ps1)
+├── experiments/                # gpu_guard.py, kaggle_queue.py, combine_submissions.py, robustness_check.py, research_round1.ps1
 ├── notebooks/
-│   └── 01_load_preprocessed_data.ipynb   # Colab entry point for every teammate
+│   ├── 01_load_preprocessed_data.ipynb   # Colab: load the cleaned data, build DataLoaders
+│   ├── 02_kaggle_training.ipynb          # Kaggle (2 × T4): train config lists, export results
+│   └── 03_colab_training.ipynb           # Google Colab: train config lists, results to Drive
 ├── spaghetti1/                 # Python package; run it with `python -m spaghetti1 <command>`
 │   ├── config.py               # paths, class names, official counts, number of folds
 │   ├── __main__.py             # command-line interface (all commands below)
@@ -67,6 +85,7 @@ Run them from the repository root with Python 3.12. The numbers match the code c
 | 10 | `python -m spaghetti1 predict --run-dirs <run> ... --output-dir <dir>` | `submission.csv` from one model or an ensemble | Whoever submits |
 | 11 | `python -m spaghetti1 export-weights` / `fetch-weights --source <link>` | Weights zip for Google Drive / verified local copy | Uploader / everyone |
 | 12 | `python -m spaghetti1 export-results` | `results/` snapshot for git | Whoever finishes experiments |
+| 13 | `python -m spaghetti1 list-models` | Model presets for `MODEL=` | Anyone writing a config |
 
 Steps 1–6 have already been run. Teammates only need step 7, or notebook 01, which runs it for them.
 

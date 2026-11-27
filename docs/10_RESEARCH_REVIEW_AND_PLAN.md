@@ -156,3 +156,25 @@ Both runs use the same recipe as their counterparts, so the comparison is direct
 | N2: DINOv3 ViT-B/16 384 | 0.832 | 0.843 | DINOv2-B 336: 0.851 | 84% with DINOv2 | lowers it: 0.860 → 0.852–0.858 |
 
 **Verdict:** with the same recipe, DINOv3 is slightly weaker than DINOv2 on this task and adds no diversity. It also trains slower (95 vs 70 min on the laptop). DINOv2 remains the model for 5-fold training (`dinov2_5fold` in the Colab/Kaggle notebooks). A DINOv3 learning-rate search could change this, but it is not a priority.
+
+### DINOv3 on the leaderboard, and robustness to corruptions
+
+DINOv3 alone (no TTA) scored **0.8253** on Kaggle, only 0.7 points below its validation score (0.832). DINOv2 lost 1.9 points (0.851 → 0.8321). Scoring the fold-0 validation images with the test-like corruptions applied explains the difference:
+
+| Drop from clean validation (points) | DINOv2 | DINOv3 | ConvNeXt-Tiny-384 | ConvNeXt-Small-288 |
+| --- | ---: | ---: | ---: | ---: |
+| Colour, brightness, noise, blur | −1.0 | **−0.1** | −0.8 | −1.3 |
+| Same + an overlay on every image | −2.6 | **−0.9** | −2.8 | −1.3 |
+| Colour casts only | −2.0 | **−0.3** | −1.0 | −1.1 |
+
+DINOv3 is clearly more robust as a single model. On "test-like" validation (default corruption probabilities), DINOv3 is only 0.4 points behind DINOv2 (0.838 vs 0.842), matching the leaderboard far better than clean validation. **From now on, report test-like validation next to clean validation.**
+
+In ensembles the robustness is already covered by ConvNeXt + DINOv2:
+
+| Ensemble | Clean | Test-like | Heavy | Kaggle |
+| --- | ---: | ---: | ---: | ---: |
+| Tiny-384 + Small-288 + DINOv2 | 0.8596 | 0.8597 | 0.8410 | 0.8424 |
+| 3 ConvNeXt + DINOv2 | 0.8593 | 0.8627 | 0.8405 | 0.8410 |
+| 3 ConvNeXt + DINOv2 + DINOv3 (`lb1_d_...`) | 0.8547 | 0.8609 | 0.8431 | |
+
+Adding DINOv3 is expected to be neutral on the leaderboard. The plan stays 5-fold DINOv2.

@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SUBMISSIONS = ROOT / "outputs" / "submissions"
 CONVNEXT = SUBMISSIONS / "ensemble_tiny224_tiny384_small288"  # 8-way TTA probabilities
 DINOV2 = SUBMISSIONS / "dinov2_base_336_notta"                 # no TTA (TTA lowered its score)
+DINOV3 = ROOT / "outputs" / "runs" / "n2_dinov3_base_384_recipe_fold0"  # no TTA
 
 MEMBERS = {
     "convnext_tiny_224": (CONVNEXT / "val_probabilities_e1_convnext_tiny_drop_copies_fold0.npy",
@@ -34,12 +35,16 @@ MEMBERS = {
                            CONVNEXT / "test_probabilities_e3_convnext_small_288_fold0.npy"),
     "dinov2_base_336": (DINOV2 / "val_probabilities_r2_dinov2_base_336_recipe_fold0_notta.npy",
                         DINOV2 / "test_probabilities_r2_dinov2_base_336_recipe_fold0_notta.npy"),
+    # DINOv3: probabilities saved by the training run itself (no TTA); Kaggle 0.8253 alone
+    "dinov3_base_384": (DINOV3 / "val_probabilities.npy", DINOV3 / "test_probabilities.npy"),
 }
 
 ENSEMBLES = {
     "lb1_a_dinov2_alone": ["dinov2_base_336"],
     "lb1_b_4models_convnext3_dinov2": ["convnext_tiny_224", "convnext_tiny_384", "convnext_small_288", "dinov2_base_336"],
     "lb1_c_tiny384_small288_dinov2": ["convnext_tiny_384", "convnext_small_288", "dinov2_base_336"],
+    "lb1_d_5models_convnext3_dinov2_dinov3": ["convnext_tiny_224", "convnext_tiny_384", "convnext_small_288",
+                                              "dinov2_base_336", "dinov3_base_384"],
 }
 
 

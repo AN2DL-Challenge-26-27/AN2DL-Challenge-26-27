@@ -19,7 +19,7 @@ Read the documents in number order. Each one builds on the previous one.
 | 08 | [Training and results](08_TRAINING_AND_RESULTS.md) | How to train a model, where results are saved, what was tested, and the results |
 | 09 | [Model weights and reproduction](09_MODEL_WEIGHTS_AND_REPRODUCTION.md) | Weights package on Google Drive; checking scores and creating submissions without retraining |
 | 10 | [Research review and plan](10_RESEARCH_REVIEW_AND_PLAN.md) | External deep-research findings checked against our data, and the experiments chosen next |
-| 11 | [Training on Kaggle](11_KAGGLE_TRAINING.md) | Running experiment queues on Kaggle's 2 × T4 GPUs and bringing the results back |
+| 11 | [Training in the cloud](11_CLOUD_TRAINING.md) | Running experiment queues on Google Colab or Kaggle and bringing the results back |
 
 If you only want to train a model, read 00, 03 (summary table only), and 06. Then open [notebooks/01_load_preprocessed_data.ipynb](../notebooks/01_load_preprocessed_data.ipynb).
 

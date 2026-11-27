@@ -1,4 +1,4 @@
-"""Generate ``01_load_preprocessed_data.ipynb`` and ``02_kaggle_training.ipynb`` from the cell lists below.
+"""Generate notebooks 01 (load data), 02 (Kaggle training), and 03 (Colab training) from the cell lists below.
 
 Keeping the notebook source in this script makes changes easy to review in git.
 Run ``python notebooks/_build_notebooks.py`` after editing the cells.
@@ -164,7 +164,7 @@ The first experiments are listed in `docs/07_NEXT_STEPS.md`. Start with the labe
 KAGGLE_CELLS = [
     ("markdown", """# Notebook 02: Train SPAGHETTI-1 models on Kaggle (2 x T4)
 
-This notebook trains a list of experiment configs from the team repository on Kaggle's free GPUs and exports the results as two zip files you can download. Full guide: `docs/11_KAGGLE_TRAINING.md`.
+This notebook trains a list of experiment configs from the team repository on Kaggle's free GPUs and exports the results as two zip files you can download. Full guide: `docs/11_CLOUD_TRAINING.md`.
 
 **Before you run it** (right-hand panel, *Session options*):
 
@@ -280,6 +280,148 @@ for path in sorted(Path("/kaggle/working/summary").glob("fold_ensemble_*/submiss
 ]
 
 
+COLAB_CELLS = [
+    ("markdown", """# Notebook 03: Train SPAGHETTI-1 models on Google Colab
+
+This notebook trains a list of experiment configs from the team repository on a Colab GPU. Everything (runs, logs, probabilities, submissions, two zip files) is written **directly to your Google Drive**, so nothing is lost when the session ends. Full guide: `docs/11_CLOUD_TRAINING.md`.
+
+**Before you run it:**
+
+1. **Runtime → Change runtime type → GPU**: T4 on the free tier; L4 or A100 with Colab Pro (much faster).
+2. **Secrets** (key icon in the left sidebar):
+   * `GITHUB_PAT`, a GitHub token, only if the repository is private;
+   * `KAGGLE_API_TOKEN`, only if you download the data from Kaggle (step 3, option B).
+3. Free Colab disconnects after about 90 minutes without interaction and after at most about 12 hours. If that happens, reconnect and run all cells again: finished runs are skipped and an interrupted run **continues from its last epoch**."""),
+    ("markdown", """## Step 1: Google Drive (where all results are stored)"""),
+    ("code", """from google.colab import drive
+
+drive.mount("/content/drive")
+DRIVE_DIR = "/content/drive/MyDrive/spaghetti1_colab"   # change if you like"""),
+    ("markdown", """## Step 2: Get the code and two packages
+
+Colab already has PyTorch, OpenCV, scikit-learn, pandas, and gdown. `timm` is upgraded because DINOv3 needs timm 1.0.20 or newer."""),
+    ("code", """import os
+import subprocess
+import sys
+from pathlib import Path
+
+from google.colab import userdata
+
+REPO = "github.com/AN2DL-Challenge-26-27/AN2DL-Challenge-26-27.git"
+REPO_DIR = Path("/content/AN2DL-Challenge-26-27")
+
+
+def secret(name):
+    try:
+        return userdata.get(name)
+    except Exception:
+        return None
+
+
+if not REPO_DIR.exists():
+    token = secret("GITHUB_PAT")
+    url = f"https://{token}@{REPO}" if token else f"https://{REPO}"
+    subprocess.run(["git", "clone", "--depth", "1", url, str(REPO_DIR)], check=True)
+else:
+    subprocess.run(["git", "-C", str(REPO_DIR), "pull", "--ff-only"], check=False)
+subprocess.run([sys.executable, "-m", "pip", "install", "-q", "-U", "timm>=1.0.22", "python-dotenv", "kagglehub"], check=True)
+
+os.chdir(REPO_DIR)
+sys.path.insert(0, str(REPO_DIR))
+import timm, torch
+print("commit:", subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip())
+print("torch", torch.__version__, "| timm", timm.__version__)
+print("GPU:", torch.cuda.get_device_name(0), "| bf16:", torch.cuda.is_bf16_supported())"""),
+    ("markdown", """## Step 3: Get the data
+
+Choose **one** source:
+
+* **A. The team's cleaned package on Google Drive** (`spaghetti1_clean_v1.zip`, 2.6 GB). Set `DATA_SOURCE` to its path in your Drive, e.g. `/content/drive/MyDrive/AN2DL/spaghetti1_clean_v1.zip`. If it was shared with you, first add a shortcut to *My Drive*. A share link also works if the file is shared as "Anyone with the link".
+* **B. Directly from Kaggle**: set `DATA_SOURCE = "kaggle"`. This needs the `KAGGLE_API_TOKEN` secret (kaggle.com → Settings → API → Create new token) and an account that has accepted the competition rules.
+
+The data is copied to Colab's fast local disk (`/content`). This takes 2–4 minutes and is repeated after a disconnect."""),
+    ("code", """DATA_SOURCE = "/content/drive/MyDrive/AN2DL/spaghetti1_clean_v1.zip"   # or "kaggle"
+
+if DATA_SOURCE == "kaggle":
+    os.environ["KAGGLE_API_TOKEN"] = secret("KAGGLE_API_TOKEN") or ""
+    assert os.environ["KAGGLE_API_TOKEN"], "add the KAGGLE_API_TOKEN secret first"
+    subprocess.run([sys.executable, "-m", "spaghetti1", "download", "--data-dir", "/content/spaghetti1_raw"], check=True)
+    DATA_DIR = Path("/content/spaghetti1_raw")
+else:
+    from spaghetti1.sharing.fetch import prepare_dataset
+    DATA_DIR = prepare_dataset(DATA_SOURCE, Path("/content/spaghetti1_data"))
+print("data:", DATA_DIR)"""),
+    ("markdown", """## Step 4: Choose what to train
+
+Pick one plan, or write your own list of config files from `configs/experiments/`. Colab has one GPU, so the runs train one after another. Rough durations per run (DINOv2/DINOv3 Base, 25 epochs): T4 about 60–90 min, L4 about 35–50 min, A100 about 15–25 min. These are estimates, to be confirmed by the first run.
+
+| Plan | Runs |
+| --- | --- |
+| `dinov2_5fold` | DINOv2-Base 336, folds 1–4 (fold 0 was trained on the laptop) |
+| `dinov2_5fold_all` | DINOv2-Base 336, folds 0–4 |
+| `dinov3_5fold` | DINOv3 ViT-B/16 384, folds 0–4 |
+| `custom` | your own `CUSTOM_CONFIGS` list |
+
+Every run also predicts the 14,736 test images (without TTA)."""),
+    ("code", """PLAN = "dinov2_5fold"          # dinov2_5fold | dinov2_5fold_all | dinov3_5fold | custom
+CUSTOM_CONFIGS = []             # e.g. ["configs/experiments/r2_dinov2_base_336_recipe_fold1.env"]
+
+PLANS = {
+    "dinov2_5fold": [f"configs/experiments/r2_dinov2_base_336_recipe_fold{k}.env" for k in (1, 2, 3, 4)],
+    "dinov2_5fold_all": [f"configs/experiments/r2_dinov2_base_336_recipe_fold{k}.env" for k in range(5)],
+    "dinov3_5fold": [f"configs/experiments/n2_dinov3_base_384_recipe_fold{k}.env" for k in range(5)],
+    "custom": CUSTOM_CONFIGS,
+}
+CONFIGS = PLANS[PLAN]
+assert CONFIGS, "empty plan"
+for config in CONFIGS:
+    assert (REPO_DIR / config).is_file(), f"missing {config}"
+WORK_DIR = Path(DRIVE_DIR) / PLAN
+print(f"{len(CONFIGS)} runs -> {WORK_DIR}")
+for config in CONFIGS:
+    print("  ", config)
+subprocess.run([sys.executable, "-m", "spaghetti1", "train", "--config", CONFIGS[0], "--dry-run"])"""),
+    ("markdown", """## Step 5: Train
+
+Progress is printed every minute (current run and latest epoch). Run folders are written to `WORK_DIR` on your Drive, so after a disconnect running all cells again continues where it stopped (`RESUME=true`). A run that fails does not stop the others."""),
+    ("code", """command = [sys.executable, "-u", "experiments/kaggle_queue.py", "--configs", *CONFIGS,
+           "--data-dir", str(DATA_DIR), "--work-dir", str(WORK_DIR), "--tag", f"colab_{PLAN}"]
+process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+for line in process.stdout:
+    print(line, end="")
+print("exit code:", process.wait())"""),
+    ("markdown", """## Step 6: Results
+
+`summary/summary.json` lists every run, its status, and for each group of folds the per-fold and **out-of-fold** weighted F1 (about 3,000 images). It also points to a fold-ensemble submission (average of the folds' test probabilities)."""),
+    ("code", """import json
+import pandas as pd
+
+summary = json.loads((WORK_DIR / "summary" / "summary.json").read_text())
+print(json.dumps(summary["fold_groups"], indent=2))
+results = pd.read_csv(WORK_DIR / "runs" / "results.csv")
+results[["run_name", "fold", "image_size", "best_epoch", "weighted_f1", "weighted_f1_tta", "minutes"]]"""),
+    ("markdown", """## Step 7: Share the results
+
+Both zip files are already in your Drive, in `WORK_DIR`:
+
+| File | Contents | Use |
+| --- | --- | --- |
+| `spaghetti1_results_colab_<plan>.zip` | Everything except model weights: results, logs, configs, curves, validation and test probabilities, submissions, summary | Small: send this one for analysis and ensembling |
+| `spaghetti1_weights_colab_<plan>.zip` | Trained models (`best.pt`) with checksums | Large: share from Drive; `python -m spaghetti1 fetch-weights --source <zip>` |
+
+The fold-ensemble `submission.csv` (in `summary/fold_ensemble_<group>/`) can be submitted to the competition directly. The cell below also offers the small results zip as a browser download."""),
+    ("code", """from google.colab import files
+
+for path in sorted(WORK_DIR.glob("spaghetti1_*.zip")):
+    print(f"{path.name}: {path.stat().st_size / 2**20:.0f} MB  ({path})")
+for path in sorted((WORK_DIR / "summary").glob("fold_ensemble_*/submission.csv")):
+    print("fold-ensemble submission:", path)
+results_zip = next(WORK_DIR.glob("spaghetti1_results_*.zip"), None)
+if results_zip:
+    files.download(str(results_zip))"""),
+]
+
+
 def build(path: Path, cells: list = CELLS) -> None:
     def cell(kind: str, source: str) -> dict:
         lines = source.splitlines(keepends=True)
@@ -303,3 +445,4 @@ def build(path: Path, cells: list = CELLS) -> None:
 if __name__ == "__main__":
     build(Path(__file__).with_name("01_load_preprocessed_data.ipynb"))
     build(Path(__file__).with_name("02_kaggle_training.ipynb"), KAGGLE_CELLS)
+    build(Path(__file__).with_name("03_colab_training.ipynb"), COLAB_CELLS)

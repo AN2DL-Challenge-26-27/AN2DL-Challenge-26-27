@@ -18,9 +18,9 @@ data_dir = prepare_dataset("<Google Drive link>")
 loaders = build_dataloaders(data_dir, fold=0, batch_size=64, image_size=224)
 ```
 
-## Training on Kaggle (2 × T4)
+## Training in the cloud (Google Colab or Kaggle)
 
-Upload [notebooks/02_kaggle_training.ipynb](notebooks/02_kaggle_training.ipynb) to Kaggle, choose a plan (e.g. 5-fold DINOv2), and run it. It downloads two zip files: results and weights. Guide: [docs/11](docs/11_KAGGLE_TRAINING.md).
+Open [notebooks/03_colab_training.ipynb](notebooks/03_colab_training.ipynb) in Colab (or [02_kaggle_training.ipynb](notebooks/02_kaggle_training.ipynb) on Kaggle), choose a plan (for example 5-fold DINOv2), and run it. Results and two zip files (results, weights) are written to your Google Drive. Guide: [docs/11](docs/11_CLOUD_TRAINING.md).
 
 ## Local setup
 
@@ -74,7 +74,7 @@ Details: [docs/08](docs/08_TRAINING_AND_RESULTS.md). Weights and reproduction wi
 ```text
 docs/           numbered documentation (00-11), research reports, and figures
 manifests/      train/test manifests with flags and CV folds (tracked; identical for everyone)
-notebooks/      01_load_preprocessed_data.ipynb (Colab entry point), 02_kaggle_training.ipynb (Kaggle 2 x T4 training)
+notebooks/      01_load_preprocessed_data.ipynb (Colab entry point), 02_kaggle_training.ipynb (Kaggle), 03_colab_training.ipynb (Colab)
 results/        configs, learning curves, metrics, confusion matrices, submissions of every run
 configs/        one .env-format file per experiment + shared recipes (see configs/README.md)
 experiments/    scripts for planned experiment rounds

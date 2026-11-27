@@ -1,6 +1,6 @@
 # 10 · Research review and the next experiments
 
-Previous: [09 · Model weights and reproduction](09_MODEL_WEIGHTS_AND_REPRODUCTION.md) · Next: [11 · Training on Kaggle](11_KAGGLE_TRAINING.md)
+Previous: [09 · Model weights and reproduction](09_MODEL_WEIGHTS_AND_REPRODUCTION.md) · Next: [11 · Training in the cloud](11_CLOUD_TRAINING.md)
 
 After the first experiments (see [08](08_TRAINING_AND_RESULTS.md)) we asked an external deep-research tool what architectures, recipes, and combinations work best for this task. We gave it our models, scores, weak classes, and constraints (general-purpose pretrained weights only, 8 GB laptop GPU or Colab). The full answer is kept in [research/2026-11-27_deep_research_galaxy10.md](research/2026-11-27_deep_research_galaxy10.md). This page records what we take from it and in which order we test it.
 

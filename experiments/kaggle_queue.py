@@ -1,6 +1,6 @@
 """Train a list of experiment configs on all available GPUs, then summarise and export the results.
 
-Made for Kaggle notebooks (2 x T4) but works on any machine. Documentation: docs/11_KAGGLE_TRAINING.md.
+Used by the Colab (03) and Kaggle (02) notebooks; works on any machine with one or more GPUs. Documentation: docs/11_CLOUD_TRAINING.md.
 
     python experiments/kaggle_queue.py --configs configs/experiments/r2_dinov2_base_336_recipe_fold1.env ... \\
         --data-dir /kaggle/input/an2dl2627 --work-dir /kaggle/working

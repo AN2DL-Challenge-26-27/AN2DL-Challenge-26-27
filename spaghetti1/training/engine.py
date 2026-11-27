@@ -1,5 +1,6 @@
-"""Model creation, optimizer (optionally with layer-wise LR decay), one training epoch
-(optionally with MixUp, gradient accumulation, and weight EMA), and prediction with 8-way TTA.
+"""Training mechanics: optimizer (optionally with layer-wise LR decay), learning-rate schedule,
+one training epoch (optionally with MixUp, gradient accumulation, and weight EMA), and
+prediction with 8-way TTA. Model creation is in ``models.py``; settings in ``config.py``.
 
 Documentation: ``docs/08_TRAINING_AND_RESULTS.md``.
 """
@@ -7,28 +8,12 @@ Documentation: ``docs/08_TRAINING_AND_RESULTS.md``.
 import math
 
 import numpy as np
-import timm
 import torch
 from torch import nn
 from timm.optim import param_groups_layer_decay
 from torch.utils.data import DataLoader
 
-from ..config import NUM_CLASSES
-
-
-# Plain vision transformers have a fixed patch grid; timm resizes their position embeddings
-# when ``img_size`` is passed (e.g. DINOv2 at 336 px = 24 x 24 patches of 14 px).
-FIXED_SIZE_FAMILIES = ("vit_", "eva", "deit", "beit")
-
-
-def create_model(name: str, drop_path_rate: float = 0.1, pretrained: bool = True,
-                 image_size: int | None = None) -> nn.Module:
-    """A ``timm`` backbone with a fresh 10-class head."""
-    kwargs = {}
-    if image_size and name.startswith(FIXED_SIZE_FAMILIES):
-        kwargs["img_size"] = image_size
-    return timm.create_model(name, pretrained=pretrained, num_classes=NUM_CLASSES, drop_path_rate=drop_path_rate,
-                             **kwargs)
+from .models import create_model  # noqa: F401  (re-exported for older imports)
 
 
 def build_optimizer(model: nn.Module, lr: float, head_lr_multiplier: float, weight_decay: float,

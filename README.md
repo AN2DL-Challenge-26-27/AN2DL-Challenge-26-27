@@ -36,7 +36,7 @@ cp .env.example .env            # optional: paths, workers, seed (PowerShell: Co
 | 5 | `python -m spaghetti1 augment-preview` | Grid of augmented training images |
 | 6 | `python -m spaghetti1 export` | `outputs/export/spaghetti1_clean_v1.zip` for Google Drive |
 | 7 | `python -m spaghetti1 fetch --source <link or path>` | Downloaded, extracted, and verified package |
-| 8 | `python -m spaghetti1 train --run-name <name>` | Trained model and metrics in `outputs/runs/<name>/` (see [docs/08](docs/08_TRAINING_AND_RESULTS.md)) |
+| 8 | `python -m spaghetti1 train --config configs/experiments/<name>.env` | Trained model and metrics in `outputs/runs/<name>/` (see [docs/08](docs/08_TRAINING_AND_RESULTS.md)) |
 | 9 | `python -m spaghetti1 evaluate --run-dir <run>` | Validation score of saved weights, without retraining |
 | 10 | `python -m spaghetti1 predict --run-dirs <run> ... --output-dir <dir>` | `submission.csv` from one model or an ensemble |
 | 11 | `python -m spaghetti1 export-weights` / `fetch-weights --source <link>` | Model-weights zip for Google Drive (see [docs/09](docs/09_MODEL_WEIGHTS_AND_REPRODUCTION.md)) |
@@ -72,6 +72,7 @@ docs/           numbered documentation (00-10), research reports, and figures
 manifests/      train/test manifests with flags and CV folds (tracked; identical for everyone)
 notebooks/      01_load_preprocessed_data.ipynb (Colab entry point)
 results/        configs, learning curves, metrics, confusion matrices, submissions of every run
+configs/        one .env-format file per experiment + shared recipes (see configs/README.md)
 experiments/    scripts for planned experiment rounds
 spaghetti1/     Python package: ingestion/, eda/, preprocessing/, sharing/, training/, config.py, __main__.py
 data/, outputs/ local only, ignored by git

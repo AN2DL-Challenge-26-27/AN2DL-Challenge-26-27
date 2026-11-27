@@ -60,13 +60,20 @@ Not planned: training rotation-equivariant networks from scratch (no pretrained 
 
 ## How to run R1 and R2
 
-The new options are part of `TrainConfig` (`--layer-decay`, `--ema-decay`, `--mixup-alpha`, `--mixup-prob`, `--mixup-off-epochs`, `--accumulation-steps`, `--grad-checkpointing`). They are off by default, so earlier commands reproduce unchanged. The two runs are scripted in [experiments/research_round1.ps1](../experiments/research_round1.ps1) and take about 40–60 minutes on the laptop GPU:
+The two runs are config files that inherit the shared recipe:
+
+* [configs/recipes/research_v2.env](../configs/recipes/research_v2.env): the recipe;
+* [configs/experiments/r1_convnext_tiny_224_recipe_fold0.env](../configs/experiments/r1_convnext_tiny_224_recipe_fold0.env);
+* [configs/experiments/r2_dinov2_base_336_recipe_fold0.env](../configs/experiments/r2_dinov2_base_336_recipe_fold0.env), which uses the `dinov2_base` preset for size, batch, and learning rates.
+
+[experiments/research_round1.ps1](../experiments/research_round1.ps1) runs both. That takes about 40–60 minutes on the laptop GPU:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File experiments/research_round1.ps1
+python -m spaghetti1 train --config configs/experiments/r2_dinov2_base_336_recipe_fold0.env --dry-run   # inspect settings
 ```
 
-All options were tested on the CPU (2026-11-27) for both models, including DINOv2 at 336 px: layer-decay groups, MixUp soft targets, gradient accumulation, EMA updates, gradient checkpointing, prediction, and resuming from `last.pt`. The GPU runs themselves are pending: Windows blocked GPU access after the previous training session, and a restart is needed.
+All options were tested on the CPU (2026-11-27) for both models, including DINOv2 at 336 px: layer-decay groups, MixUp soft targets, gradient accumulation, EMA updates, gradient checkpointing, prediction, and resuming. An end-to-end R1 smoke run with `--limit-batches 2` also passed. The GPU runs themselves are pending: Windows blocked GPU access after the previous training session, and a restart is needed.
 
 ## Status
 

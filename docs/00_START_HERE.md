@@ -31,6 +31,7 @@ If you only want to train a model, read 00, 03 (summary table only), and 06. The
 │   ├── test_manifest.csv
 │   └── preprocessing_summary.json
 ├── results/                    # lightweight results of every run + submission files (tracked in git)
+├── configs/                    # experiment config files (.env format) and shared recipes
 ├── experiments/                # scripts for planned experiment rounds (e.g. research_round1.ps1)
 ├── notebooks/
 │   └── 01_load_preprocessed_data.ipynb   # Colab entry point for every teammate
@@ -60,7 +61,7 @@ Run them from the repository root with Python 3.12. The numbers match the code c
 | 5 | `python -m spaghetti1 augment-preview` | `outputs/preprocessing/augmentation_preview.png` | Anyone changing augmentation |
 | 6 | `python -m spaghetti1 export` | `outputs/export/spaghetti1_clean_v1.zip` (2.6 GB) | Whoever uploads to Drive |
 | 7 | `python -m spaghetti1 fetch --source <Drive link>` | Extracted package, verified | Every teammate (or use the notebook) |
-| 8 | `python -m spaghetti1 train --run-name <name>` | `outputs/runs/<name>/` + a row in `outputs/runs/results.csv` | Whoever runs an experiment |
+| 8 | `python -m spaghetti1 train --config configs/experiments/<name>.env` | `outputs/runs/<name>/` + a row in `outputs/runs/results.csv` | Whoever runs an experiment |
 | 9 | `python -m spaghetti1 evaluate --run-dir <run>` | Validation score of saved weights | Anyone checking a result |
 | 10 | `python -m spaghetti1 predict --run-dirs <run> ... --output-dir <dir>` | `submission.csv` from one model or an ensemble | Whoever submits |
 | 11 | `python -m spaghetti1 export-weights` / `fetch-weights --source <link>` | Weights zip for Google Drive / verified local copy | Uploader / everyone |

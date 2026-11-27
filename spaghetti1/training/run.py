@@ -1,11 +1,13 @@
 """Run one training experiment end to end and save everything needed to compare it.
 
-Command: ``python -m spaghetti1 train --run-name <name> [options]``.
-Documentation: ``docs/08_TRAINING_AND_RESULTS.md``.
+Command: ``python -m spaghetti1 train --config configs/experiments/<name>.env [--flag value ...]``.
+Documentation: ``docs/08_TRAINING_AND_RESULTS.md`` and ``configs/README.md``. The settings
+themselves (``TrainConfig``) live in ``config.py``; the model registry in ``models.py``.
 
-Every run writes ``outputs/runs/<run_name>/``:
+Every run writes ``<runs dir>/<run_name>/`` (``outputs/runs`` unless ``SPAGHETTI_RUNS_DIR`` is set):
 
-* ``config.json``          all settings of the run
+* ``config.env``           the fully resolved settings, re-runnable with ``--config``
+* ``config.json``          the same settings plus the source of every value
 * ``history.csv``          per epoch: learning rate, train loss/accuracy, validation loss and F1
 * ``metrics.json``         validation metrics of the best epoch, without and with 8-way TTA
 * ``confusion_matrix.png`` and ``confusion_matrix_tta.png``
@@ -18,17 +20,17 @@ Every run writes ``outputs/runs/<run_name>/``:
 and appends one summary row to ``outputs/runs/results.csv``.
 """
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, replace
 from datetime import datetime
 import json
+import math
+import os
 from pathlib import Path
 import random
 import time
 
 import numpy as np
 import pandas as pd
-import math
-
 import torch
 from timm.data import Mixup
 from timm.utils import ModelEmaV3
@@ -38,48 +40,36 @@ from ..config import NUM_CLASSES, PROJECT_DIR
 from ..preprocessing.dataset import class_weights
 from ..preprocessing.loaders import build_dataloaders
 from ..preprocessing.transforms import AugmentConfig, PreprocessConfig
-from .engine import build_optimizer, create_model, predict, train_one_epoch
+from .config import TrainConfig, format_config
+from .engine import build_optimizer, predict, train_one_epoch
+from .models import create_model, resolve_model
 from .metrics import compute_metrics, plot_confusion
 
-RUNS_DIR = PROJECT_DIR / "outputs" / "runs"
+__all__ = ["TrainConfig", "run_experiment", "runs_dir"]
 
 
-@dataclass
-class TrainConfig:
-    """All settings of one experiment. Defaults are the baseline (E0)."""
+def runs_dir() -> Path:
+    """Where runs are written: ``SPAGHETTI_RUNS_DIR`` from the project ``.env``, else outputs/runs."""
+    return PROJECT_DIR / Path(os.getenv("SPAGHETTI_RUNS_DIR", "outputs/runs"))
 
-    run_name: str = "e0_convnext_tiny_fold0"
-    model: str = "convnext_tiny.fb_in22k_ft_in1k"
-    fold: int = 0
-    epochs: int = 25
-    batch_size: int = 32
-    image_size: int = 224
-    lr: float = 1e-4
-    head_lr_multiplier: float = 10.0
-    weight_decay: float = 0.05
-    warmup_epochs: float = 1.0
-    drop_path_rate: float = 0.1
-    label_smoothing: float = 0.1
-    class_weight_power: float = 0.5  # 0 = unweighted loss, 0.5 = 1/sqrt(n_c), 1 = inverse frequency
-    label_policy: str = "original"
-    balance_power: float = 0.0
-    augment: bool = True
-    background_normalize: bool = False
-    denoise: str = "none"
-    tta: bool = True
-    predict_test: bool = False
-    num_workers: int = 4
-    seed: int = 42
-    resume: bool = False  # continue from outputs/runs/<run_name>/last.pt if it exists
-    # Recipe options added after the research review (docs/10); all off by default, so the
-    # commands of the earlier runs reproduce exactly.
-    layer_decay: float = 0.0        # > 0: layer-wise LR decay; ``lr`` is then the head's learning rate
-    ema_decay: float = 0.0          # > 0: evaluate and save an exponential moving average of the weights
-    mixup_alpha: float = 0.0        # > 0: MixUp (no CutMix) with mixing weights from Beta(alpha, alpha)
-    mixup_prob: float = 0.5         # share of batches that are mixed
-    mixup_off_epochs: int = 5       # train the last N epochs without MixUp
-    accumulation_steps: int = 1     # batches per optimizer step (effective batch = batch_size x this)
-    grad_checkpointing: bool = False  # trade compute for memory (large ViTs on 8 GB)
+
+RUNS_DIR = runs_dir()  # kept for code written against the earlier module
+
+
+class LimitedLoader:
+    """A DataLoader view with at most ``limit`` batches (``LIMIT_BATCHES`` smoke tests)."""
+
+    def __init__(self, loader, limit: int):
+        self.loader, self.limit = loader, limit
+
+    def __len__(self) -> int:
+        return min(len(self.loader), self.limit)
+
+    def __iter__(self):
+        for index, batch in enumerate(self.loader):
+            if index >= self.limit:
+                break
+            yield batch
 
 
 def seed_everything(seed: int) -> None:
@@ -133,17 +123,25 @@ def _row(run: TrainConfig, metrics: dict, metrics_tta: dict | None, best_epoch: 
     return row
 
 
-def run_experiment(run: TrainConfig, data_dir: Path) -> dict:
-    """Train on the fold's training part, select the best epoch on validation, evaluate, and save."""
+def run_experiment(run: TrainConfig, data_dir: Path, sources: dict | None = None) -> dict:
+    """Train on the fold's training part, select the best epoch on validation, evaluate, and save.
+
+    ``sources`` (from ``config.build_config``) records where every setting came from.
+    """
     started = time.time()
+    timm_name, preset, _ = resolve_model(run.model)  # accept a preset name in ``model``
+    run = replace(run, model=timm_name, preset=preset or run.preset)
+    sources = sources or {name: "TrainConfig" for name in asdict(run)}
     seed_everything(run.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     amp_dtype = torch.bfloat16 if device.type == "cuda" and torch.cuda.is_bf16_supported() else None
     torch.backends.cudnn.benchmark = True
 
-    output = RUNS_DIR / run.run_name
+    output = runs_dir() / run.run_name
     output.mkdir(parents=True, exist_ok=True)
-    (output / "config.json").write_text(json.dumps(asdict(run), indent=2) + "\n", encoding="utf-8")
+    (output / "config.env").write_text(format_config(run, sources), encoding="utf-8")
+    (output / "config.json").write_text(json.dumps({**asdict(run), "sources": sources}, indent=2) + "\n",
+                                        encoding="utf-8")
 
     preprocess = PreprocessConfig(image_size=run.image_size, denoise=run.denoise,
                                   background_normalize=run.background_normalize)
@@ -152,6 +150,14 @@ def run_experiment(run: TrainConfig, data_dir: Path) -> dict:
         label_policy=run.label_policy, balance_power=run.balance_power, preprocess=preprocess,
         augment=AugmentConfig() if run.augment else None, num_workers=run.num_workers, seed=run.seed,
     )
+    if run.limit_batches > 0:  # smoke test: a few batches per epoch only
+        loaders.train = LimitedLoader(loaders.train, run.limit_batches)
+        loaders.validation = LimitedLoader(loaders.validation, run.limit_batches)
+        loaders.validation_frame = loaders.validation_frame.head(run.limit_batches * run.batch_size)
+        loaders.test = LimitedLoader(loaders.test, run.limit_batches)
+        loaders.test_frame = loaders.test_frame.head(run.limit_batches * run.batch_size)
+    print(f"[{run.run_name}] model {run.model}" + (f" (preset {run.preset})" if run.preset else "")
+          + f" | {run.image_size} px | fold {run.fold}", flush=True)
     print(f"[{run.run_name}] train {len(loaders.train_frame):,} | validation {len(loaders.validation_frame):,} "
           f"| device {device} | amp {amp_dtype}", flush=True)
 
@@ -240,7 +246,7 @@ def run_experiment(run: TrainConfig, data_dir: Path) -> dict:
     summary["minutes"] = round(minutes, 1)
     (output / "metrics.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     if metrics:
-        results = RUNS_DIR / "results.csv"
+        results = runs_dir() / "results.csv"
         row = pd.DataFrame([_row(run, metrics, metrics_tta, best_epoch, minutes)])
         row.to_csv(results, mode="a", header=not results.exists(), index=False)
         report = metrics_tta or metrics

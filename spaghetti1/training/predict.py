@@ -31,7 +31,8 @@ from ..config import NUM_CLASSES
 from ..preprocessing.dataset import GalaxyDataset, load_test_manifest, load_train_manifest, split_fold
 from ..preprocessing.loaders import manifest_dir_for
 from ..preprocessing.transforms import GalaxyTransform, PreprocessConfig
-from .engine import create_model, predict
+from .engine import predict
+from .models import create_model
 from .metrics import compute_metrics
 
 

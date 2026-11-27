@@ -2,54 +2,107 @@
 
 Previous: [07 · Next steps](07_NEXT_STEPS.md) · Next: [09 · Model weights and reproduction](09_MODEL_WEIGHTS_AND_REPRODUCTION.md)
 
-Code: [spaghetti1/training/](../spaghetti1/training/), read in this order: `metrics.py` → `engine.py` → `run.py`.
+Code: [spaghetti1/training/](../spaghetti1/training/), read in this order: `models.py` (model registry) → `config.py` (settings and config files) → `metrics.py` → `engine.py` (training mechanics) → `run.py` (experiment flow) → `predict.py`.
 
 ## Training a model
 
+Every run is described by a config file in [configs/experiments/](../configs/experiments/):
+
 ```bash
-python -m spaghetti1 train --run-name e2_convnext_tiny_288_fold0 --image-size 288 --label-policy drop_copies --epochs 30
+python -m spaghetti1 train --config configs/experiments/r2_dinov2_base_336_recipe_fold0.env --dry-run   # check
+python -m spaghetti1 train --config configs/experiments/r2_dinov2_base_336_recipe_fold0.env             # train
 ```
 
-`--data-dir` points to the raw Kaggle folder (default `data/raw`) or to the extracted Google Drive package. Every field of `TrainConfig` in `run.py` is a command-line option:
+`--data-dir` points to the raw Kaggle folder (default `data/raw`, or `SPAGHETTI_DATA_DIR` in `.env`) or to the extracted Google Drive package. Mixed precision (bfloat16) is used automatically on GPUs that support it. On a laptop RTX 4060 (8 GB), ConvNeXt-Tiny at 224 px takes about 20 s per epoch and about 10 minutes per run.
 
-| Option | Default | Meaning |
+## Configuration files and model presets
+
+### Choosing a model
+
+`MODEL=` (or `--model`) takes a **preset name** or any `timm` model name. Run `python -m spaghetti1 list-models` to see the presets:
+
+| Preset | `timm` checkpoint | Preset defaults | Tested |
+| --- | --- | --- | --- |
+| `convnext_tiny` | `convnext_tiny.fb_in22k_ft_in1k` | 224 px, batch 32 | yes (E0–E2) |
+| `convnext_small` | `convnext_small.fb_in22k_ft_in1k` | 288 px, batch 24 | yes (E3) |
+| `convnextv2_tiny` | `convnextv2_tiny.fcmae_ft_in22k_in1k` | 288 px, batch 32 | no |
+| `efficientnetv2_s` | `tf_efficientnetv2_s.in21k_ft_in1k` | 288 px, batch 32 | no |
+| `swin_base_384` | `swin_base_patch4_window12_384.ms_in22k_ft_in1k` | 384 px, batch 8 × 4, gradient checkpointing | no |
+| `dinov2_base` | `vit_base_patch14_reg4_dinov2.lvd142m` | 336 px, batch 8 × 4, gradient checkpointing, LR 2e-4, layer decay 0.75 | no (R2) |
+| `eva02_base` | `eva02_base_patch14_448.mim_in22k_ft_in22k_in1k` | 336 px, batch 8 × 4, gradient checkpointing, LR 2e-4, layer decay 0.75 | no |
+
+All presets are general-purpose pretrained models, as the rules require. To add a model, add one entry to `MODEL_PRESETS` in [models.py](../spaghetti1/training/models.py), or simply write its `timm` name in `MODEL=`.
+
+### Config files
+
+A config file lists only what differs from the defaults, one `KEY=VALUE` per line. Keys are the `TrainConfig` fields in upper case. `BASE=` inherits a shared recipe:
+
+```ini
+# configs/experiments/r1_convnext_tiny_224_recipe_fold0.env
+BASE=../recipes/research_v2.env
+DESCRIPTION=ConvNeXt-Tiny 224 with the research recipe
+MODEL=convnext_tiny
+EPOCHS=30
+LR=3e-4
+LAYER_DECAY=0.85
+```
+
+Settings are resolved in this order (later wins): `TrainConfig` defaults → `SPAGHETTI_NUM_WORKERS` from `.env` → model preset → `BASE` file(s) → the experiment file → command-line flags. Unknown keys stop the run with the list of valid keys. Rules and examples: [configs/README.md](../configs/README.md).
+
+### All settings
+
+| Key | Default | Meaning |
 | --- | --- | --- |
-| `--model` | `convnext_tiny.fb_in22k_ft_in1k` | Any `timm` model name (general-purpose pretrained weights only, see 07) |
-| `--fold` | 0 | Validation fold; `-1` trains on all kept images (final model) |
-| `--epochs`, `--batch-size`, `--image-size` | 25, 32, 224 | Images are upsampled from 256 when `image-size` is larger |
-| `--lr`, `--head-lr-multiplier` | 1e-4, 10 | AdamW; the new classification head learns 10× faster |
-| `--weight-decay`, `--warmup-epochs`, `--drop-path-rate` | 0.05, 1, 0.1 | Linear warm-up, then cosine decay to 1% |
-| `--label-smoothing` | 0.1 | |
-| `--class-weight-power` | 0.5 | Loss weights `(1/n_c)^power`; 0 = unweighted |
-| `--label-policy` | `original` | `original`, `drop_copies`, or `as_given` (see 03) |
-| `--balance-power` | 0 | > 0 over-samples rare classes instead |
-| `--augment / --no-augment`, `--background-normalize`, `--denoise` | on, off, none | See 05 |
-| `--tta / --no-tta` | on | Also evaluate with 8-way rotation/flip test-time augmentation |
-| `--predict-test` | off | Predict the 14,736 test images and write `submission.csv` |
-| `--resume` | off | Continue from `last.pt` after a crash or stop |
+| `RUN_NAME` | config file name | Output folder `outputs/runs/<run name>/` |
+| `DESCRIPTION` | | Free text, saved with the run |
+| `MODEL` | `convnext_tiny` | Preset or `timm` name |
+| `FOLD`, `SEED` | 0, 42 | Validation fold (`-1` = train on all kept images); random seed |
+| `EPOCHS`, `BATCH_SIZE`, `ACCUMULATION_STEPS` | 25, 32, 1 | Effective batch = batch size × accumulation steps |
+| `LR`, `HEAD_LR_MULTIPLIER`, `LAYER_DECAY` | 1e-4, 10, 0 | Without layer decay the head learns 10× faster; with layer decay `LR` is the head's rate and every earlier block gets another factor `LAYER_DECAY` |
+| `WEIGHT_DECAY`, `WARMUP_EPOCHS`, `DROP_PATH_RATE` | 0.05, 1, 0.1 | AdamW; linear warm-up then cosine decay to 1% |
+| `GRAD_CHECKPOINTING`, `EMA_DECAY` | false, 0 | Memory saving for large models; > 0 scores and saves a moving average of the weights |
+| `LABEL_SMOOTHING`, `CLASS_WEIGHT_POWER` | 0.1, 0.5 | Loss weights `(1/n_c)^power`; 0 = unweighted |
+| `LABEL_POLICY`, `BALANCE_POWER` | `original`, 0 | `original`, `drop_copies`, `as_given` (see 03); > 0 over-samples rare classes |
+| `MIXUP_ALPHA`, `MIXUP_PROB`, `MIXUP_OFF_EPOCHS` | 0, 0.5, 5 | MixUp (never CutMix); off in the last epochs |
+| `IMAGE_SIZE`, `AUGMENT`, `BACKGROUND_NORMALIZE`, `DENOISE` | 224, true, false, none | See 05 |
+| `NUM_WORKERS` | 4 | DataLoader workers (machine setting, best set in `.env`) |
+| `TTA`, `PREDICT_TEST`, `RESUME` | true, false, false | 8-way TTA evaluation; write `submission.csv`; continue from `last.pt` |
+| `LIMIT_BATCHES` | 0 | > 0: only this many batches per epoch, for quick smoke tests |
 
-Mixed precision (bfloat16) is used automatically on GPUs that support it. On a laptop RTX 4060 (8 GB), ConvNeXt-Tiny at 224 px takes about 20 s per epoch and about 10 minutes per run.
+### Traceability
 
-## Exact commands used for every run
+Each run saves `config.env`, with every resolved setting and its source as a comment:
 
-These six commands produced every result on this page; all other settings are the `TrainConfig` defaults (also saved in `results/runs/<run>/config.json`). Each run needs the dataset (`data/raw` or `--data-dir <package>`) and took 8–20 minutes on a laptop RTX 4060.
-
-```bash
-python -m spaghetti1 train --run-name e0_convnext_tiny_original_fold0 --label-policy original --predict-test
-python -m spaghetti1 train --run-name e1_convnext_tiny_drop_copies_fold0 --label-policy drop_copies
-python -m spaghetti1 train --run-name e1_convnext_tiny_as_given_fold0 --label-policy as_given
-python -m spaghetti1 train --run-name e2_convnext_tiny_288_fold0 --image-size 288 --label-policy drop_copies --epochs 30 --resume
-python -m spaghetti1 train --run-name e2_convnext_tiny_384_fold0 --image-size 384 --batch-size 16 --label-policy drop_copies --epochs 30 --resume
-python -m spaghetti1 train --run-name e3_convnext_small_288_fold0 --model convnext_small.fb_in22k_ft_in1k --image-size 288 --batch-size 24 --label-policy drop_copies --epochs 30 --resume
+```ini
+MODEL=dinov2_base  # configs/experiments/r2_dinov2_base_336_recipe_fold0.env
+LR=0.0002  # preset dinov2_base
+MIXUP_ALPHA=0.3  # configs/recipes/research_v2.env
+EPOCHS=3  # command line
 ```
 
-Shared defaults: fold 0, AdamW (lr 1e-4, head ×10, weight decay 0.05), 1 warm-up epoch then cosine decay, label smoothing 0.1, loss weights `(1/n_c)^0.5`, drop path 0.1, bfloat16 mixed precision, seed 42, 25 epochs unless set. Retraining gives very close but not bit-identical numbers (GPU non-determinism); to use the exact trained models, load the shared weights instead ([09](09_MODEL_WEIGHTS_AND_REPRODUCTION.md)).
+It also saves `config.json` with the same values plus a `sources` map. `python -m spaghetti1 train --config outputs/runs/<run>/config.env` repeats a run exactly. The shared `.env` holds only machine settings (paths, workers, runs folder); experiment parameters always live in the config files.
+
+## Config files of every reported run
+
+Each result on this page has its config file in `configs/experiments/` (they resolve to exactly the settings saved with the runs):
+
+| Run | Config file |
+| --- | --- |
+| E0 | `e0_convnext_tiny_original_fold0.env` |
+| E1a | `e1_convnext_tiny_drop_copies_fold0.env` |
+| E1b | `e1_convnext_tiny_as_given_fold0.env` |
+| E2a | `e2_convnext_tiny_288_fold0.env` |
+| E2b | `e2_convnext_tiny_384_fold0.env` |
+| E3 | `e3_convnext_small_288_fold0.env` |
+
+Retraining gives very close but not bit-identical numbers (GPU non-determinism). To use the exact trained models, load the shared weights instead ([09](09_MODEL_WEIGHTS_AND_REPRODUCTION.md)).
 
 ## What a run saves (`outputs/runs/<run_name>/`)
 
 | File | Contents |
 | --- | --- |
-| `config.json` | All settings |
+| `config.env` | All resolved settings with their source; re-runnable with `--config` |
+| `config.json` | The same settings plus a `sources` map |
 | `history.csv` | Per epoch: learning rate, training loss/accuracy, validation loss, weighted F1, macro F1, accuracy, seconds |
 | `metrics.json` | Validation metrics of the best epoch (per class and confusion matrix), without and with TTA |
 | `confusion_matrix.png`, `confusion_matrix_tta.png` | Row-normalised confusion matrices |

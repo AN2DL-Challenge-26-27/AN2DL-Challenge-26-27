@@ -9,7 +9,8 @@ Commands in pipeline order (documentation in ``docs/00_START_HERE.md``):
 5. ``augment-preview`` save a grid of augmented training images
 6. ``export``          pack the cleaned dataset into one zip for Google Drive
 7. ``fetch``           download or copy that zip and extract it on any machine
-8. ``train``           train and evaluate one model; results in ``outputs/runs/``
+8. ``train``           train and evaluate one model from a config file; results in ``outputs/runs/``
+   ``list-models``     show the model presets that ``MODEL=`` accepts
 9. ``evaluate``        re-score a saved model on its validation fold (no retraining)
 10. ``predict``        test predictions + submission.csv from one model or an ensemble
 11. ``export-weights`` pack trained models into one zip for Google Drive
@@ -96,19 +97,26 @@ def main() -> int:
 
     from dataclasses import fields
 
-    from .training.run import TrainConfig
+    from .training.config import TrainConfig
 
-    train = commands.add_parser("train", help="train one model on a CV fold and save metrics to outputs/runs/")
+    train = commands.add_parser(
+        "train", help="train one model; settings from --config <file.env> and/or flags (see configs/README.md)")
     train.add_argument("--data-dir", type=Path, default=data_dir, help="raw data folder or extracted Drive package")
+    train.add_argument("--config", type=Path, default=None,
+                       help="experiment config file, e.g. configs/experiments/r2_dinov2_base_recipe_fold0.env")
+    train.add_argument("--dry-run", action="store_true", help="print the resolved settings and their sources, then stop")
+    # Flags override the config file only when given (default=SUPPRESS keeps them out of args).
     for option in fields(TrainConfig):
+        if option.name == "preset":
+            continue
         flag = "--" + option.name.replace("_", "-")
-        if option.type in (bool, "bool"):
-            train.add_argument(flag, action=argparse.BooleanOptionalAction, default=option.default)
+        if option.type is bool:
+            train.add_argument(flag, action=argparse.BooleanOptionalAction, default=argparse.SUPPRESS)
         else:
-            kind = {"int": int, "float": float, "str": str}.get(str(option.type), option.type)
-            train.add_argument(flag, type=kind, default=option.default)
+            train.add_argument(flag, type=option.type, default=argparse.SUPPRESS)
+    commands.add_parser("list-models", help="show the model presets accepted by MODEL= / --model")
 
-    runs_dir = PROJECT_DIR / "outputs" / "runs"
+    runs_dir = PROJECT_DIR / Path(os.getenv("SPAGHETTI_RUNS_DIR", "outputs/runs"))
     best_runs = [runs_dir / name for name in (
         "e0_convnext_tiny_original_fold0", "e1_convnext_tiny_drop_copies_fold0", "e1_convnext_tiny_as_given_fold0",
         "e2_convnext_tiny_288_fold0", "e2_convnext_tiny_384_fold0", "e3_convnext_small_288_fold0")]
@@ -206,11 +214,25 @@ def main() -> int:
             print(f"Saved {snapshot(runs_dir, args.results_dir, PROJECT_DIR / 'outputs' / 'submissions')}")
             return 0
 
+        if args.command == "list-models":
+            from .training.models import describe_presets
+
+            print(describe_presets())
+            print("\nAny other timm model name also works (MODEL=<timm name>), without preset defaults.")
+            return 0
+
         if args.command == "train":
+            from .training.config import build_config, format_config
+
+            overrides = {option.name: getattr(args, option.name) for option in fields(TrainConfig)
+                         if hasattr(args, option.name)}
+            config, sources = build_config(args.config, overrides)
+            if args.dry_run:
+                print(format_config(config, sources), end="")
+                return 0
             from .training.run import run_experiment
 
-            settings = {option.name: getattr(args, option.name) for option in fields(TrainConfig)}
-            run_experiment(TrainConfig(**settings), args.data_dir)
+            run_experiment(config, args.data_dir, sources)
             return 0
 
         if args.command == "verify":

@@ -66,7 +66,8 @@ Settings are resolved in this order (later wins): `TrainConfig` defaults → `SP
 | `MIXUP_ALPHA`, `MIXUP_PROB`, `MIXUP_OFF_EPOCHS` | 0, 0.5, 5 | MixUp (never CutMix); off in the last epochs |
 | `IMAGE_SIZE`, `AUGMENT`, `BACKGROUND_NORMALIZE`, `DENOISE` | 224, true, false, none | See 05 |
 | `NUM_WORKERS` | 4 | DataLoader workers (machine setting, best set in `.env`) |
-| `TTA`, `PREDICT_TEST`, `RESUME` | true, false, false | 8-way TTA evaluation; write `submission.csv`; continue from `last.pt` |
+| `PRECISION` | `auto` | `auto` = bfloat16 if the GPU supports it, else float16 with gradient scaling (Kaggle T4/P100); or `bf16`, `fp16`, `fp32` |
+| `TTA`, `PREDICT_TEST`, `TEST_TTA`, `RESUME` | true, false, true, false | 8-way TTA evaluation; write `submission.csv` and `test_probabilities.npy`; use TTA for the test predictions; continue from `last.pt` |
 | `LIMIT_BATCHES` | 0 | > 0: only this many batches per epoch, for quick smoke tests |
 
 ### Traceability
@@ -109,6 +110,7 @@ Retraining gives very close but not bit-identical numbers (GPU non-determinism).
 | `metrics.json` | Validation metrics of the best epoch (per class and confusion matrix), without and with TTA |
 | `confusion_matrix.png`, `confusion_matrix_tta.png` | Row-normalised confusion matrices |
 | `val_predictions.csv` | Per validation image: true label, prediction, class probabilities (for ensembling and error analysis) |
+| `val_probabilities.npy`, `val_probabilities_tta.npy` | Raw validation probabilities without and with TTA (`split_fold` order) |
 | `best.pt` | Weights of the epoch with the highest validation weighted F1 |
 | `last.pt` | Full training state after the last finished epoch (for `--resume`) |
 | `test_probabilities.npy`, `submission.csv` | With `--predict-test` |

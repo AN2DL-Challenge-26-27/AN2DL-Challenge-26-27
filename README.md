@@ -2,7 +2,7 @@
 
 Classify 256 × 256 RGB galaxy images into 10 classes. Submissions are scored with **weighted F1**. The official data has 4,328 labelled training images and 14,736 test images. [Competition page](https://www.kaggle.com/competitions/an2dl2627)
 
-**Start with [docs/00_START_HERE.md](docs/00_START_HERE.md).** The documentation is numbered 00–10 in reading order.
+**Start with [docs/00_START_HERE.md](docs/00_START_HERE.md).** The documentation is numbered 00–11 in reading order.
 
 ## Quick start for teammates (Colab)
 
@@ -17,6 +17,10 @@ from spaghetti1.preprocessing.loaders import build_dataloaders
 data_dir = prepare_dataset("<Google Drive link>")
 loaders = build_dataloaders(data_dir, fold=0, batch_size=64, image_size=224)
 ```
+
+## Training on Kaggle (2 × T4)
+
+Upload [notebooks/02_kaggle_training.ipynb](notebooks/02_kaggle_training.ipynb) to Kaggle, choose a plan (e.g. 5-fold DINOv2), and run it. It downloads two zip files: results and weights. Guide: [docs/11](docs/11_KAGGLE_TRAINING.md).
 
 ## Local setup
 
@@ -68,9 +72,9 @@ Details: [docs/08](docs/08_TRAINING_AND_RESULTS.md). Weights and reproduction wi
 ## Repository layout
 
 ```text
-docs/           numbered documentation (00-10), research reports, and figures
+docs/           numbered documentation (00-11), research reports, and figures
 manifests/      train/test manifests with flags and CV folds (tracked; identical for everyone)
-notebooks/      01_load_preprocessed_data.ipynb (Colab entry point)
+notebooks/      01_load_preprocessed_data.ipynb (Colab entry point), 02_kaggle_training.ipynb (Kaggle 2 x T4 training)
 results/        configs, learning curves, metrics, confusion matrices, submissions of every run
 configs/        one .env-format file per experiment + shared recipes (see configs/README.md)
 experiments/    scripts for planned experiment rounds

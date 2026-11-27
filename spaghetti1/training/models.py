@@ -9,7 +9,7 @@ accumulation, ...). Config files and command-line flags still override every pre
 Any other ``timm`` model name can be used directly (``MODEL=resnet50.a1_in1k``); it then
 gets no preset defaults. To add a preset, add one entry to ``MODEL_PRESETS``. Only
 general-purpose pretrained weights are allowed by the competition rules (no space-specific
-models such as Zoobot).
+models such as Zoobot; the DINOv3 ``sat493m`` satellite-image checkpoints are not used either).
 """
 
 from dataclasses import dataclass, field
@@ -47,7 +47,14 @@ MODEL_PRESETS: dict[str, ModelPreset] = {
     "dinov2_base": ModelPreset(
         "vit_base_patch14_reg4_dinov2.lvd142m", "DINOv2 ViT-B/14 with registers, self-supervised LVD-142M (86 M)",
         {"image_size": 336, "batch_size": 8, "accumulation_steps": 4, "grad_checkpointing": True,
+         "lr": 2e-4, "layer_decay": 0.75}, tested=True),
+    "dinov3_base": ModelPreset(
+        "vit_base_patch16_dinov3.lvd1689m", "DINOv3 ViT-B/16, self-supervised LVD-1689M web images, 2025 (86 M)",
+        {"image_size": 384, "batch_size": 8, "accumulation_steps": 4, "grad_checkpointing": True,
          "lr": 2e-4, "layer_decay": 0.75}),
+    "dinov3_convnext_tiny": ModelPreset(
+        "convnext_tiny.dinov3_lvd1689m", "ConvNeXt-Tiny distilled from DINOv3 (LVD-1689M web images), 2025 (28 M)",
+        {"image_size": 288, "batch_size": 32}),
     "eva02_base": ModelPreset(
         "eva02_base_patch14_448.mim_in22k_ft_in22k_in1k", "EVA-02 ViT-B/14, MIM + ImageNet-22k (87 M)",
         {"image_size": 336, "batch_size": 8, "accumulation_steps": 4, "grad_checkpointing": True,

@@ -15,5 +15,6 @@ Read the documents in number order. [00 · Start here](00_START_HERE.md) explain
 | 08 | [Training and results](08_TRAINING_AND_RESULTS.md) |
 | 09 | [Model weights and reproduction](09_MODEL_WEIGHTS_AND_REPRODUCTION.md) |
 | 10 | [Research review and plan](10_RESEARCH_REVIEW_AND_PLAN.md) |
+| 11 | [Training on Kaggle](11_KAGGLE_TRAINING.md) |
 
 `research/` keeps external research reports unedited. `figures/` holds the images used in these documents. [SPAGHETTI-1-Progress-Report.pdf](SPAGHETTI-1-Progress-Report.pdf) is the earlier progress report from the EDA phase.

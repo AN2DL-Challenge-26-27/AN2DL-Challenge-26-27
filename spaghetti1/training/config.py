@@ -64,9 +64,11 @@ class TrainConfig:
     background_normalize: bool = False
     denoise: str = "none"            # none | bilateral | nlm
     num_workers: int = 4
+    precision: str = "auto"          # auto (bf16 if the GPU supports it, else fp16) | bf16 | fp16 | fp32
     # ---- evaluation and outputs
-    tta: bool = True
+    tta: bool = True                 # also evaluate validation with 8-way TTA
     predict_test: bool = False
+    test_tta: bool = True            # use TTA for the test predictions (when tta is also on)
     resume: bool = False             # continue from outputs/runs/<run_name>/last.pt if it exists
     limit_batches: int = 0           # > 0: only this many batches per epoch (quick smoke tests)
 

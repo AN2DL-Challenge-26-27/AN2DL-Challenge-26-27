@@ -39,7 +39,7 @@ from .metrics import compute_metrics
 def _device() -> tuple[torch.device, torch.dtype | None]:
     if torch.cuda.is_available():
         device = torch.device("cuda")
-        return device, torch.bfloat16 if torch.cuda.is_bf16_supported() else None
+        return device, torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
     print("No usable GPU found: running on the CPU, which is much slower.", flush=True)
     return torch.device("cpu"), None
 

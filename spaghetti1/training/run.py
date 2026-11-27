@@ -41,7 +41,7 @@ from ..preprocessing.dataset import class_weights
 from ..preprocessing.loaders import build_dataloaders
 from ..preprocessing.transforms import AugmentConfig, PreprocessConfig
 from .config import TrainConfig, format_config
-from .engine import build_optimizer, predict, train_one_epoch
+from .engine import build_optimizer, predict, resolve_precision, train_one_epoch
 from .models import create_model, resolve_model
 from .metrics import compute_metrics, plot_confusion
 
@@ -134,7 +134,8 @@ def run_experiment(run: TrainConfig, data_dir: Path, sources: dict | None = None
     sources = sources or {name: "TrainConfig" for name in asdict(run)}
     seed_everything(run.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    amp_dtype = torch.bfloat16 if device.type == "cuda" and torch.cuda.is_bf16_supported() else None
+    amp_dtype = resolve_precision(run.precision, device)
+    scaler = torch.amp.GradScaler("cuda") if amp_dtype == torch.float16 else None
     torch.backends.cudnn.benchmark = True
 
     output = runs_dir() / run.run_name
@@ -157,7 +158,7 @@ def run_experiment(run: TrainConfig, data_dir: Path, sources: dict | None = None
         loaders.test = LimitedLoader(loaders.test, run.limit_batches)
         loaders.test_frame = loaders.test_frame.head(run.limit_batches * run.batch_size)
     print(f"[{run.run_name}] model {run.model}" + (f" (preset {run.preset})" if run.preset else "")
-          + f" | {run.image_size} px | fold {run.fold}", flush=True)
+          + f" | {run.image_size} px | fold {run.fold} | precision {amp_dtype or 'float32'}", flush=True)
     print(f"[{run.run_name}] train {len(loaders.train_frame):,} | validation {len(loaders.validation_frame):,} "
           f"| device {device} | amp {amp_dtype}", flush=True)
 
@@ -192,6 +193,7 @@ def run_experiment(run: TrainConfig, data_dir: Path, sources: dict | None = None
             model, loaders.train, criterion, optimizer, device,
             step=step, total_steps=total_steps, warmup_steps=warmup_steps, amp_dtype=amp_dtype,
             mixup=mix_this_epoch, class_weight=weights, ema=ema, accumulation_steps=run.accumulation_steps,
+            scaler=scaler,
         )
         evaluated = ema.module if ema is not None else model  # the weights that are scored and saved
         record = {"epoch": epoch, "lr": max(group["lr"] for group in optimizer.param_groups),
@@ -217,16 +219,19 @@ def run_experiment(run: TrainConfig, data_dir: Path, sources: dict | None = None
         best_epoch = run.epochs
     model.load_state_dict(torch.load(output / "best.pt", map_location=device))
 
-    summary = {"run_name": run.run_name, "best_epoch": best_epoch}
+    summary = {"run_name": run.run_name, "best_epoch": best_epoch,
+               "precision": str(amp_dtype).replace("torch.", "") if amp_dtype else "float32"}
     metrics = metrics_tta = None
     if has_validation:
         probs, labels, _ = predict(model, loaders.validation, device, amp_dtype=amp_dtype)
+        np.save(output / "val_probabilities.npy", probs.astype(np.float32))  # no TTA, split_fold order
         metrics = compute_metrics(labels, probs.argmax(1))
         plot_confusion(metrics["confusion_matrix"], f"{run.run_name} (epoch {best_epoch}) wF1 {metrics['weighted_f1']:.4f}",
                        output / "confusion_matrix.png")
         predictions = loaders.validation_frame[["id", "label", "original_label", "dup_group_size"]].copy()
         if run.tta:
             probs_tta, _, _ = predict(model, loaders.validation, device, tta=True, amp_dtype=amp_dtype)
+            np.save(output / "val_probabilities_tta.npy", probs_tta.astype(np.float32))
             metrics_tta = compute_metrics(labels, probs_tta.argmax(1))
             plot_confusion(metrics_tta["confusion_matrix"], f"{run.run_name} + TTA wF1 {metrics_tta['weighted_f1']:.4f}",
                            output / "confusion_matrix_tta.png")
@@ -238,7 +243,8 @@ def run_experiment(run: TrainConfig, data_dir: Path, sources: dict | None = None
         summary.update(validation=metrics, validation_tta=metrics_tta)
 
     if run.predict_test:
-        test_probs, _, _ = predict(model, loaders.test, device, tta=run.tta, amp_dtype=amp_dtype)
+        summary["test_tta"] = run.tta and run.test_tta
+        test_probs, _, _ = predict(model, loaders.test, device, tta=summary["test_tta"], amp_dtype=amp_dtype)
         np.save(output / "test_probabilities.npy", test_probs.astype(np.float32))
         pd.DataFrame({"id": loaders.test_frame["id"], "label": test_probs.argmax(1)}).to_csv(output / "submission.csv", index=False)
 

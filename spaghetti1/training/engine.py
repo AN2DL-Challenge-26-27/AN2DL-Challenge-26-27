@@ -68,14 +68,30 @@ def soft_cross_entropy(logits: torch.Tensor, targets: torch.Tensor, weight: torc
     return -(targets * log_probs).sum(1).mean()
 
 
+def resolve_precision(precision: str, device: torch.device) -> torch.dtype | None:
+    """Autocast dtype for ``precision`` (auto/bf16/fp16/fp32); None means full float32.
+
+    ``auto`` uses bfloat16 when the GPU supports it (RTX 30xx/40xx, A100, L4) and float16
+    otherwise (Kaggle/Colab T4 and P100), which needs a gradient scaler.
+    """
+    if device.type != "cuda" or precision == "fp32":
+        return None
+    if precision == "bf16" or (precision == "auto" and torch.cuda.is_bf16_supported()):
+        return torch.bfloat16
+    if precision in ("fp16", "auto"):
+        return torch.float16
+    raise ValueError(f"precision must be auto, bf16, fp16, or fp32, got {precision!r}")
+
+
 def train_one_epoch(model, loader: DataLoader, criterion, optimizer, device, *, step: int, total_steps: int,
                     warmup_steps: int, amp_dtype, mixup=None, class_weight=None, ema=None,
-                    accumulation_steps: int = 1) -> tuple[float, float, int]:
+                    accumulation_steps: int = 1, scaler=None) -> tuple[float, float, int]:
     """Train for one pass over ``loader``; return (mean loss, accuracy, next optimizer step).
 
     ``mixup`` (a ``timm.data.Mixup``) turns the labels into soft targets for this epoch.
     ``accumulation_steps`` > 1 sums gradients over several batches per optimizer step.
     ``ema`` (a ``timm.utils.ModelEmaV3``) is updated after every optimizer step.
+    ``scaler`` (a ``torch.amp.GradScaler``) is required for float16 training.
     """
     model.train()
     loss_sum, correct, seen = 0.0, 0, 0
@@ -90,11 +106,18 @@ def train_one_epoch(model, loader: DataLoader, criterion, optimizer, device, *, 
         with torch.autocast(device_type=device.type, dtype=amp_dtype, enabled=amp_dtype is not None):
             logits = model(images)
             loss = criterion(logits, labels) if targets is None else soft_cross_entropy(logits, targets, class_weight)
-        (loss / accumulation_steps).backward()
+        scaled = loss / accumulation_steps
+        (scaler.scale(scaled) if scaler is not None else scaled).backward()
         if (index + 1) % accumulation_steps == 0 or index + 1 == batches:
             set_learning_rate(optimizer, step, total_steps, warmup_steps)
+            if scaler is not None:
+                scaler.unscale_(optimizer)  # clip the real gradients, not the scaled ones
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-            optimizer.step()
+            if scaler is not None:
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                optimizer.step()
             optimizer.zero_grad(set_to_none=True)
             step += 1
             if ema is not None:

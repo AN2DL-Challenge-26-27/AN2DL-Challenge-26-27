@@ -94,6 +94,8 @@ Each result on this page has its config file in `configs/experiments/` (they res
 | E2a | `e2_convnext_tiny_288_fold0.env` |
 | E2b | `e2_convnext_tiny_384_fold0.env` |
 | E3 | `e3_convnext_small_288_fold0.env` |
+| R1 | `r1_convnext_tiny_224_recipe_fold0.env` |
+| R2 | `r2_dinov2_base_336_recipe_fold0.env` |
 
 Retraining gives very close but not bit-identical numbers (GPU non-determinism). To use the exact trained models, load the shared weights instead ([09](09_MODEL_WEIGHTS_AND_REPRODUCTION.md)).
 
@@ -127,7 +129,10 @@ With 599 images, differences below about 1.5 points are within noise.
 | E2a | ConvNeXt-Tiny | 288 | drop_copies | 0.846 | 0.833 | 0.35 | 0.80 | 0.69 |
 | E2b | ConvNeXt-Tiny | 384 | drop_copies | **0.847** | 0.846 | 0.54 | 0.75 | 0.72 |
 | E3 | ConvNeXt-Small | 288 | drop_copies | 0.841 | **0.847** | 0.60 | 0.79 | 0.71 |
-| Ensemble | E1a + E2b + E3 (average of TTA probabilities) | | | | **0.856** | 0.57 | 0.78 | 0.70 |
+| R1 | ConvNeXt-Tiny | 224 | drop_copies, research recipe | 0.831 | 0.828 | 0.39 | 0.75 | 0.70 |
+| R2 | DINOv2-Base | 336 | drop_copies, research recipe | **0.852** | 0.839 | 0.38 | 0.81 | 0.72 |
+| Ensemble | E1a + E2b + E3 (average of TTA probabilities) | | | | 0.856 | 0.57 | 0.78 | 0.70 |
+| Ensemble | E1a + E2b + E3 + R2 | | | | **0.859** | 0.59 | 0.78 | 0.72 |
 
 ### Findings
 
@@ -168,6 +173,7 @@ With 599 images, differences below about 1.5 points are within noise.
 | --- | --- | ---: |
 | `e0_convnext_tiny_original_fold0/submission.csv` | ConvNeXt-Tiny 224 | 0.836 |
 | `ensemble_tiny224_tiny384/submission.csv` | ConvNeXt-Tiny 224 + 384, TTA | 0.846 |
-| *(to create, needs a GPU)* | + ConvNeXt-Small 288 | 0.856 |
+| `ensemble_tiny224_tiny384_small288/submission.csv` | + ConvNeXt-Small 288 | 0.856 |
+| *(to create)* | + DINOv2-Base 336 | 0.859 |
 
 How to recreate every number and file from the shared weights is described in [09 · Model weights and reproduction](09_MODEL_WEIGHTS_AND_REPRODUCTION.md). The improvement plan (EMA, multi-architecture 5-fold ensemble, pseudo-labelling, per-class probability tuning) is in [07 · Next steps](07_NEXT_STEPS.md).

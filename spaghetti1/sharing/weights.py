@@ -34,7 +34,7 @@ WEIGHTS_NAME = "spaghetti1_weights"
 WEIGHTS_VERSION = "v1"
 WEIGHTS_INFO_FILE = "weights_info.json"
 RUN_FILES = ("best.pt", "config.json", "metrics.json", "history.csv", "val_predictions.csv", "test_probabilities.npy")
-RESULT_FILES = ("config.json", "metrics.json", "history.csv", "val_predictions.csv",
+RESULT_FILES = ("config.env", "config.json", "metrics.json", "history.csv", "val_predictions.csv",
                 "confusion_matrix.png", "confusion_matrix_tta.png")
 
 

@@ -75,9 +75,51 @@ python -m spaghetti1 train --config configs/experiments/r2_dinov2_base_336_recip
 
 All options were tested on the CPU (2026-11-27) for both models, including DINOv2 at 336 px: layer-decay groups, MixUp soft targets, gradient accumulation, EMA updates, gradient checkpointing, prediction, and resuming. An end-to-end R1 smoke run with `--limit-batches 2` also passed. The GPU runs themselves are pending: Windows blocked GPU access after the previous training session, and a restart is needed.
 
+## Results of round 1 (2026-11-27, fold 0, 599 validation images)
+
+| Run | Weighted F1 | + TTA | Irregular (0) | Tight (6) | Loose (7) | Final train acc. | Time |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| E1a, old recipe (reference) | 0.843 | 0.844 | 0.51 | 0.78 | 0.70 | 0.92 | 8 min |
+| **R1**, ConvNeXt-Tiny 224, research recipe | 0.831 | 0.828 | 0.39 | 0.75 | 0.70 | 0.86 | 11 min |
+| **R2**, DINOv2-Base 336, research recipe | **0.852** | 0.839 | 0.38 | **0.81** | 0.72 | 0.86 | 70 min |
+
+Times are with the GPU temperature guard (pauses at 82 °C, see below), which roughly doubles the wall time.
+
+| Ensemble (average of TTA probabilities) | Weighted F1 |
+| --- | ---: |
+| Earlier best: Tiny-224 + Tiny-384 + Small-288 | 0.856 |
+| Tiny-384 + DINOv2 | 0.857 |
+| Tiny-384 + Small-288 + DINOv2 | 0.858 |
+| **Tiny-224 + Tiny-384 + Small-288 + DINOv2** | **0.859** |
+
+Share of errors also made by the other model, as a fraction of the smaller error set:
+
+| Pair | Shared |
+| --- | ---: |
+| ConvNeXt-Tiny-384 vs ConvNeXt-Small-288 | 82% |
+| DINOv2 vs each ConvNeXt run | 74–77% |
+| R1 vs R2 | 85% |
+
+### Verdict against the success criteria
+
+* **R1 is not adopted.** The research recipe reduced over-fitting (training accuracy 0.86 instead of 0.92) but scored 1.2 points lower than the old recipe on ConvNeXt-Tiny. That difference is within noise, so it is not a clear loss either. The old recipe stays the default for ConvNeXt.
+* **R2 passes.** It is the best single model so far (0.852). Its errors overlap less with ConvNeXt (74–77%) than ConvNeXt models overlap with each other (82%), though not "well below 70%". Adding it raises the fold-0 ensemble from 0.856 to 0.859. That gain is small (within the ±1.5-point noise), but it is consistent across combinations.
+* **TTA remains unreliable:** it lowered R2 from 0.852 to 0.839, as it lowered Tiny-288 before.
+* **The irregular class is still the weak point** (0.38–0.59). DINOv2 clearly improved tight spirals (0.81, the best so far) but not irregular galaxies. The 4-model ensemble reaches 0.59 on irregular galaxies.
+
+### Recommended next steps
+
+1. A 4-model submission (Tiny-224 + Tiny-384 + Small-288 + DINOv2). It needs DINOv2 test predictions: about 40 minutes with TTA under the temperature guard, or about 5 minutes without TTA.
+2. 5-fold training of DINOv2 and ConvNeXt-Tiny-384, about 8 hours with the guard (overnight). It gives reliable out-of-fold scores on ~3,000 images and fold ensembles, which matter more than any further fold-0 comparison.
+3. Then calibration and per-class multipliers on the out-of-fold predictions, and one round of soft pseudo-labelling (see "Later steps").
+
+## GPU temperature guard
+
+`experiments/gpu_guard.py` runs next to any training. It pauses the `spaghetti1` processes at 82 °C and resumes them at 72 °C after at least 45 s. During this round it paused about 75 times, and the GPU never exceeded 84 °C. Without it, the GPU sat at 85–86 °C. If the guard is killed during a pause, `python experiments/gpu_guard.py --resume-all` resumes the training.
+
 ## Status
 
 | Run | Status | Weighted F1 | + TTA |
 | --- | --- | ---: | ---: |
-| R1 | Waiting for the GPU | | |
-| R2 | Waiting for the GPU | | |
+| R1 | Done | 0.831 | 0.828 |
+| R2 | Done | 0.852 | 0.839 |

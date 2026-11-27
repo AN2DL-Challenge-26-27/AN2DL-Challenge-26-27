@@ -5,6 +5,7 @@ Lightweight outputs of every training run, kept in git so results can be inspect
 | Path | Contents |
 | --- | --- |
 | `results.csv` | One row per run: model, input size, label policy, best epoch, validation weighted F1 with and without TTA, macro F1, accuracy, per-class F1, minutes |
+| `runs/<run_name>/config.env` | Resolved settings with the source of each value (runs from R1 on); re-runnable with `--config` |
 | `runs/<run_name>/config.json` | Every training setting |
 | `runs/<run_name>/history.csv` | Per-epoch learning rate, training loss and accuracy, validation loss, weighted F1, macro F1, accuracy |
 | `runs/<run_name>/metrics.json` | Validation metrics of the best epoch, per class, with the confusion matrix, without and with TTA |

@@ -116,6 +116,6 @@ transform = GalaxyTransform(PreprocessConfig(image_size=config["image_size"]), N
 | --- | --- | ---: | --- |
 | `e0_convnext_tiny_original_fold0` | ConvNeXt-Tiny 224, label policy `original` | 0.836 | First baseline |
 | `ensemble_tiny224_tiny384` | ConvNeXt-Tiny 224 + 384 (copies dropped), TTA | 0.846 | Best file available so far |
-| *(to do)* `best_ensemble` | + ConvNeXt-Small 288 | 0.856 | Needs a GPU: run command D |
+| `ensemble_tiny224_tiny384_small288` | + ConvNeXt-Small 288, TTA | 0.856 | Created 2026-11-27 after the GPU restart |
 
 The third model's test predictions could not be made on the training laptop: Windows blocked GPU access after the long training session ("GPU access blocked by the operating system"). After a restart, or on Colab, command D creates this file in about 6 minutes, reusing the cached predictions of the other two models if they are in the same output folder.

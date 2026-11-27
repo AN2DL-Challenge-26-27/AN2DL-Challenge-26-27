@@ -1,0 +1,28 @@
+{
+  "created": "2026-11-27 17:40",
+  "tta": true,
+  "runs": [
+    "e1_convnext_tiny_drop_copies_fold0",
+    "e2_convnext_tiny_384_fold0",
+    "e3_convnext_small_288_fold0"
+  ],
+  "test_rows": 14736,
+  "predicted_class_counts": {
+    "0": 850,
+    "1": 1555,
+    "2": 2265,
+    "3": 1799,
+    "4": 379,
+    "5": 1686,
+    "6": 1259,
+    "7": 2207,
+    "8": 1200,
+    "9": 1536
+  },
+  "validation_weighted_f1_per_model": {
+    "e1_convnext_tiny_drop_copies_fold0": 0.8441,
+    "e2_convnext_tiny_384_fold0": 0.8455,
+    "e3_convnext_small_288_fold0": 0.8473
+  },
+  "validation_weighted_f1_ensemble": 0.8561
+}

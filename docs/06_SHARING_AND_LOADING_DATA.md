@@ -8,6 +8,20 @@ Code: [spaghetti1/sharing/export.py](../spaghetti1/sharing/export.py), [spaghett
 
 The trained models are shared the same way in a second zip, `spaghetti1_weights_v1.zip` (756 MB); see [09](09_MODEL_WEIGHTS_AND_REPRODUCTION.md).
 
+## The team folder on Google Drive
+
+All shared files live in one Drive folder, which the notebooks use by default:
+
+```text
+My Drive/SPAGHETTI-1 | Image Classification/
+├── spaghetti1_clean_v1.zip      # cleaned dataset (this page)
+├── spaghetti1_weights_v1.zip    # trained models (docs/09)
+├── e0_convnext_tiny_original_fold0/, ensemble_tiny224_tiny384/   # submissions
+└── colab_runs/<plan>/           # written by the Colab training notebook (docs/11)
+```
+
+If the folder was shared with you, open it in Drive and choose *Organize → Add shortcut → My Drive*. It then appears under the same path in Colab (`/content/drive/MyDrive/SPAGHETTI-1 | Image Classification`).
+
 ## The package: `spaghetti1_clean_v1.zip` (2.6 GB)
 
 ```text

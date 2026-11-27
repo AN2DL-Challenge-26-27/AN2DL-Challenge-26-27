@@ -53,17 +53,27 @@ else:
 os.chdir(REPO_DIR)
 sys.path.insert(0, str(REPO_DIR))
 print("Repository:", REPO_DIR)"""),
-    ("markdown", """## Step 2: Download the cleaned dataset
+    ("markdown", """## Step 2: Get the cleaned dataset from Google Drive
 
-Paste the Google Drive link of `spaghetti1_clean_v1.zip` below. The file must be shared as **Anyone with the link → Viewer**. Other accepted sources:
+By default the dataset is read from the team's project folder:
 
-* the path of the zip on a mounted Drive, for example `/content/drive/MyDrive/AN2DL/spaghetti1_clean_v1.zip` (run `from google.colab import drive; drive.mount("/content/drive")` first);
+`My Drive/SPAGHETTI-1 | Image Classification/spaghetti1_clean_v1.zip`
+
+If the folder was shared with you, open it in Drive and choose *Organize → Add shortcut → My Drive* first. Other accepted sources for `DATA_SOURCE`:
+
+* a Google Drive share link of the zip, shared as **Anyone with the link → Viewer**;
 * a folder where the package is already extracted.
 
-The zip (~2.6 GB) is extracted to `/content/spaghetti1_data` on Colab's fast local disk. Re-running the cell reuses the verified copy."""),
+The zip (~2.6 GB) is copied and extracted to `/content/spaghetti1_data` on Colab's fast local disk. Re-running the cell reuses the verified copy."""),
     ("code", """from spaghetti1.sharing.fetch import prepare_dataset
 
-DATA_SOURCE = "PASTE_THE_GOOGLE_DRIVE_LINK_HERE"
+PROJECT_DRIVE = Path("/content/drive/MyDrive/SPAGHETTI-1 | Image Classification")   # the team folder
+DATA_SOURCE = str(PROJECT_DRIVE / "spaghetti1_clean_v1.zip")                       # or a share link
+
+if DATA_SOURCE.startswith("/content/drive") and IN_COLAB:
+    from google.colab import drive
+    drive.mount("/content/drive")
+    assert Path(DATA_SOURCE).exists(), f"Not found: {DATA_SOURCE} (add a shortcut to My Drive or fix the path)"
 
 data_dir = prepare_dataset(DATA_SOURCE)
 print("Dataset folder:", data_dir)"""),
@@ -292,11 +302,27 @@ This notebook trains a list of experiment configs from the team repository on a 
    * `GITHUB_PAT`, a GitHub token, only if the repository is private;
    * `KAGGLE_API_TOKEN`, only if you download the data from Kaggle (step 3, option B).
 3. Free Colab disconnects after about 90 minutes without interaction and after at most about 12 hours. If that happens, reconnect and run all cells again: finished runs are skipped and an interrupted run **continues from its last epoch**."""),
-    ("markdown", """## Step 1: Google Drive (where all results are stored)"""),
-    ("code", """from google.colab import drive
+    ("markdown", """## Step 1: Google Drive (data in, results out)
+
+The team's project folder on Google Drive is used for everything:
+
+```text
+My Drive/SPAGHETTI-1 | Image Classification/
+├── spaghetti1_clean_v1.zip      # cleaned dataset (read in step 3)
+├── spaghetti1_weights_v1.zip    # trained laptop models (optional, not needed for training)
+└── colab_runs/<plan>/           # created by this notebook: runs, logs, summary, zip files
+```
+
+If the folder was shared with you, open it in Drive and choose *Organize → Add shortcut → My Drive* first. It then appears under the same path."""),
+    ("code", """from pathlib import Path
+
+from google.colab import drive
 
 drive.mount("/content/drive")
-DRIVE_DIR = "/content/drive/MyDrive/spaghetti1_colab"   # change if you like"""),
+PROJECT_DRIVE = Path("/content/drive/MyDrive/SPAGHETTI-1 | Image Classification")   # the team folder
+assert PROJECT_DRIVE.is_dir(), f"Folder not found: {PROJECT_DRIVE} (add a shortcut to My Drive or fix the name)"
+DRIVE_DIR = PROJECT_DRIVE / "colab_runs"
+print("project folder:", *sorted(p.name for p in PROJECT_DRIVE.iterdir()), sep="\\n  ")"""),
     ("markdown", """## Step 2: Get the code and two packages
 
 Colab already has PyTorch, OpenCV, scikit-learn, pandas, and gdown. `timm` is upgraded because DINOv3 needs timm 1.0.20 or newer."""),
@@ -336,11 +362,11 @@ print("GPU:", torch.cuda.get_device_name(0), "| bf16:", torch.cuda.is_bf16_suppo
 
 Choose **one** source:
 
-* **A. The team's cleaned package on Google Drive** (`spaghetti1_clean_v1.zip`, 2.6 GB). Set `DATA_SOURCE` to its path in your Drive, e.g. `/content/drive/MyDrive/AN2DL/spaghetti1_clean_v1.zip`. If it was shared with you, first add a shortcut to *My Drive*. A share link also works if the file is shared as "Anyone with the link".
+* **A. The team's cleaned package on Google Drive** (default): `spaghetti1_clean_v1.zip` (2.6 GB) in the project folder from step 1. Nothing to change.
 * **B. Directly from Kaggle**: set `DATA_SOURCE = "kaggle"`. This needs the `KAGGLE_API_TOKEN` secret (kaggle.com → Settings → API → Create new token) and an account that has accepted the competition rules.
 
 The data is copied to Colab's fast local disk (`/content`). This takes 2–4 minutes and is repeated after a disconnect."""),
-    ("code", """DATA_SOURCE = "/content/drive/MyDrive/AN2DL/spaghetti1_clean_v1.zip"   # or "kaggle"
+    ("code", """DATA_SOURCE = str(PROJECT_DRIVE / "spaghetti1_clean_v1.zip")   # or "kaggle"
 
 if DATA_SOURCE == "kaggle":
     os.environ["KAGGLE_API_TOKEN"] = secret("KAGGLE_API_TOKEN") or ""

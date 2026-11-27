@@ -23,13 +23,13 @@ Notebook: [notebooks/03_colab_training.ipynb](../notebooks/03_colab_training.ipy
 2. **Runtime → Change runtime type → T4 GPU** (or L4/A100 with Colab Pro).
 3. **Secrets** (key icon, left sidebar). Add `GITHUB_PAT` if the repository is private, and `KAGGLE_API_TOKEN` only for data option B. Allow notebook access when asked.
 4. Run the cells in order:
-   * **Step 1:** mounts Google Drive. All outputs go to `MyDrive/spaghetti1_colab/<plan>/`.
+   * **Step 1:** mounts Google Drive and opens the team folder `My Drive/SPAGHETTI-1 | Image Classification/` (if it was shared with you: *Add shortcut → My Drive* first). All outputs go to its `colab_runs/<plan>/` subfolder.
    * **Step 2:** clones the repository and upgrades `timm`.
-   * **Step 3:** gets the data. Option A: `DATA_SOURCE` = path of `spaghetti1_clean_v1.zip` in your Drive (if it was shared with you, first *Add shortcut to My Drive*), or its share link. Option B: `DATA_SOURCE = "kaggle"`.
+   * **Step 3:** gets the data. Option A (default, nothing to change): `spaghetti1_clean_v1.zip` from the team folder. Option B: `DATA_SOURCE = "kaggle"`.
    * **Step 4:** choose `PLAN` (`dinov2_5fold`, `dinov2_5fold_all`, `dinov3_5fold`, or `custom`).
    * **Step 5:** trains. Progress is printed every minute.
    * **Steps 6–7:** show the results and offer the small results zip as a download.
-5. If Colab disconnects: reconnect, select the GPU again if needed, and **run all cells again**. Finished runs are skipped. An interrupted run continues from its last saved epoch, because the run folders live on Drive.
+5. If Colab disconnects: reconnect, select the GPU again if needed, and **run all cells again**. Finished runs are skipped. An interrupted run continues from its last saved epoch, because the run folders live on Drive (`colab_runs/<plan>/runs/`).
 
 Free Colab has 2 CPU cores, so data loading uses 2 workers per run. Saving `last.pt` to Drive after every epoch adds some seconds per epoch; it is what makes the runs survive disconnects.
 

@@ -6,6 +6,8 @@ Every trained model is shared as **one zip file on Google Drive**, next to the i
 
 Code: [spaghetti1/training/predict.py](../spaghetti1/training/predict.py) (evaluate and predict) and [spaghetti1/sharing/weights.py](../spaghetti1/sharing/weights.py) (pack, fetch, verify).
 
+> **Update 2026-11-27: `spaghetti1_weights_v2.zip` (1.67 GB) supersedes v1.** It contains all 10 fold-0 runs: the six below plus R1, R2 (DINOv2), N1, and N2 (DINOv3), with their saved validation and test probabilities. It also records the three ensembles with Kaggle scores (best: 0.8441). Paths in the commands below then read `spaghetti1_weights_v2`. The model list is in the package's `WEIGHTS_CARD.md`.
+
 ## What is shared where
 
 | Item | Where | Size |

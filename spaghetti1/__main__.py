@@ -33,13 +33,23 @@ from .ingestion.dataset import load_manifest, validate_layout
 # Validated ensembles of the fold-0 runs (validation weighted F1 with 8-way TTA), recorded in the
 # weights package so everyone knows which combination to use.
 KNOWN_ENSEMBLES = {
-    "best_validated": {
-        "runs": ["e1_convnext_tiny_drop_copies_fold0", "e2_convnext_tiny_384_fold0", "e3_convnext_small_288_fold0"],
-        "validation_weighted_f1_tta": 0.8561,
+    # Validated combinations of the fold-0 runs, recorded in the weights package. Members use the same
+    # TTA choice as the submissions: ConvNeXt with 8-way TTA, DINOv2/DINOv3 without TTA.
+    "best_kaggle": {
+        "runs": ["e1_convnext_tiny_drop_copies_fold0", "e2_convnext_tiny_384_fold0", "e3_convnext_small_288_fold0",
+                 "r2_dinov2_base_336_recipe_fold0", "n2_dinov3_base_384_recipe_fold0"],
+        "validation_weighted_f1": 0.8547, "test_like_validation_weighted_f1": 0.8609, "kaggle_public": 0.8441,
+        "submission": "lb1_d_5models_convnext3_dinov2_dinov3",
     },
-    "two_tiny_models": {
-        "runs": ["e1_convnext_tiny_drop_copies_fold0", "e2_convnext_tiny_384_fold0"],
-        "validation_weighted_f1_tta": 0.846,
+    "tiny384_small288_dinov2": {
+        "runs": ["e2_convnext_tiny_384_fold0", "e3_convnext_small_288_fold0", "r2_dinov2_base_336_recipe_fold0"],
+        "validation_weighted_f1": 0.8596, "test_like_validation_weighted_f1": 0.8597, "kaggle_public": 0.8424,
+        "submission": "lb1_c_tiny384_small288_dinov2",
+    },
+    "convnext3": {
+        "runs": ["e1_convnext_tiny_drop_copies_fold0", "e2_convnext_tiny_384_fold0", "e3_convnext_small_288_fold0"],
+        "validation_weighted_f1": 0.8561, "kaggle_public": 0.8371,
+        "submission": "ensemble_tiny224_tiny384_small288",
     },
 }
 
@@ -117,9 +127,11 @@ def main() -> int:
     commands.add_parser("list-models", help="show the model presets accepted by MODEL= / --model")
 
     runs_dir = PROJECT_DIR / Path(os.getenv("SPAGHETTI_RUNS_DIR", "outputs/runs"))
-    best_runs = [runs_dir / name for name in (
+    best_runs = [runs_dir / name for name in (  # every reported fold-0 run (docs/08, docs/10)
         "e0_convnext_tiny_original_fold0", "e1_convnext_tiny_drop_copies_fold0", "e1_convnext_tiny_as_given_fold0",
-        "e2_convnext_tiny_288_fold0", "e2_convnext_tiny_384_fold0", "e3_convnext_small_288_fold0")]
+        "e2_convnext_tiny_288_fold0", "e2_convnext_tiny_384_fold0", "e3_convnext_small_288_fold0",
+        "r1_convnext_tiny_224_recipe_fold0", "r2_dinov2_base_336_recipe_fold0",
+        "n1_dinov3_convnext_tiny_288_fold0", "n2_dinov3_base_384_recipe_fold0")]
 
     evaluate = commands.add_parser("evaluate", help="re-score a saved model on its validation fold")
     evaluate.add_argument("--run-dir", type=Path, required=True, help="folder with best.pt and config.json")
@@ -134,7 +146,7 @@ def main() -> int:
     export_weights = commands.add_parser("export-weights", help="pack trained models into a zip for Google Drive")
     export_weights.add_argument("--runs", type=Path, nargs="+", default=best_runs)
     export_weights.add_argument("--output-dir", type=Path, default=PROJECT_DIR / "outputs" / "export")
-    export_weights.add_argument("--version", default="v1")
+    export_weights.add_argument("--version", default="v2")
     fetch_weights = commands.add_parser("fetch-weights", help="download or copy the weights zip and verify it")
     fetch_weights.add_argument("--source", required=True, help="Google Drive link/file id, zip path, or extracted folder")
     fetch_weights.add_argument("--target-dir", type=Path, default=None)

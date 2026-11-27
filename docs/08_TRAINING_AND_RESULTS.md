@@ -169,11 +169,13 @@ With 599 images, differences below about 1.5 points are within noise.
 
 ## Submissions
 
-| File (`results/submissions/`) | Models | Val wF1 |
-| --- | --- | ---: |
-| `e0_convnext_tiny_original_fold0/submission.csv` | ConvNeXt-Tiny 224 | 0.836 |
-| `ensemble_tiny224_tiny384/submission.csv` | ConvNeXt-Tiny 224 + 384, TTA | 0.846 |
-| `ensemble_tiny224_tiny384_small288/submission.csv` | + ConvNeXt-Small 288 | 0.856 |
-| *(to create)* | + DINOv2-Base 336 | 0.859 |
+| File (`results/submissions/`) | Models | Val wF1 | Kaggle public |
+| --- | --- | ---: | ---: |
+| `e0_convnext_tiny_original_fold0/submission.csv` | ConvNeXt-Tiny 224 | 0.836 | |
+| `ensemble_tiny224_tiny384/submission.csv` | ConvNeXt-Tiny 224 + 384, TTA | 0.846 | |
+| `ensemble_tiny224_tiny384_small288/submission.csv` | + ConvNeXt-Small 288 | 0.856 | **0.8371** |
+| *(to create)* | + DINOv2-Base 336 | 0.859 | |
+
+**Validation vs leaderboard (2026-11-27).** The 3-model ensemble scored 0.8371 on the public leaderboard, 1.9 points below its fold-0 validation score. The test set shows the same predicted class mix as validation (no class or label-convention shift), but the models are slightly less confident on test images (mean top probability 0.813 vs 0.829), most of all on images least similar to the training set. The likely causes are: selection of epochs and ensemble on the same 599 images (optimistic), validation noise (±1.5 points), mild test-domain shift, and fold-0 models trained on 80% of the data. Expect leaderboard scores about 2 points below fold-0 validation; 5-fold out-of-fold scores, full-data models, and pseudo-labelling are the planned remedies (see 10).
 
 How to recreate every number and file from the shared weights is described in [09 · Model weights and reproduction](09_MODEL_WEIGHTS_AND_REPRODUCTION.md). The improvement plan (EMA, multi-architecture 5-fold ensemble, pseudo-labelling, per-class probability tuning) is in [07 · Next steps](07_NEXT_STEPS.md).

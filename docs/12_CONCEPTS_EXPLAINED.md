@@ -1,6 +1,6 @@
 # 12 · Concepts and techniques explained
 
-Previous: [11 · Training in the cloud](11_CLOUD_TRAINING.md)
+Previous: [11 · Training in the cloud](11_CLOUD_TRAINING.md) · Next: [13 · Model architectures in pictures](13_MODEL_ARCHITECTURES.md)
 
 This page explains every idea and technique used in the project, for readers new to machine learning. Each section says **what the idea is**, **why we needed it here**, and **where it is used**, with numbers from our own experiments. It can be read on its own; the other documents give the details. A glossary is at the end.
 

@@ -2,7 +2,7 @@
 
 Classify 256 × 256 RGB galaxy images into 10 classes. Submissions are scored with **weighted F1**. The official data has 4,328 labelled training images and 14,736 test images. [Competition page](https://www.kaggle.com/competitions/an2dl2627)
 
-**Start with [docs/00_START_HERE.md](docs/00_START_HERE.md).** The documentation is numbered 00–12 in reading order. New to machine learning? Start with [docs/12](docs/12_CONCEPTS_EXPLAINED.md), which explains every concept and technique used here.
+**Start with [docs/00_START_HERE.md](docs/00_START_HERE.md).** The documentation is numbered 00–13 in reading order. New to machine learning? Start with [docs/12](docs/12_CONCEPTS_EXPLAINED.md), which explains every concept and technique used here, and [docs/13](docs/13_MODEL_ARCHITECTURES.md), which shows the architectures as diagrams.
 
 ## Quick start for teammates (Colab)
 
@@ -60,6 +60,8 @@ Evidence and alternatives: [docs/03_PREPROCESSING.md](docs/03_PREPROCESSING.md).
 
 ## Results so far
 
+![The SPAGHETTI-1 pipeline](docs/figures/13a_pipeline.png)
+
 | Submission | Fold-0 validation | Kaggle public |
 | --- | ---: | ---: |
 | ConvNeXt Tiny-224 + Tiny-384 + Small-288 | 0.856 | 0.8371 |
@@ -75,7 +77,7 @@ Details: [docs/08](docs/08_TRAINING_AND_RESULTS.md) (training, all results), [do
 ## Repository layout
 
 ```text
-docs/           numbered documentation (00-12), research reports, and figures
+docs/           numbered documentation (00-13), research reports, and figures
 manifests/      train/test manifests with flags and CV folds (tracked; identical for everyone)
 notebooks/      01_load_preprocessed_data.ipynb (Colab entry point), 02_kaggle_training.ipynb (Kaggle), 03_colab_training.ipynb (Colab)
 results/        configs, learning curves, metrics, confusion matrices, submissions of every run

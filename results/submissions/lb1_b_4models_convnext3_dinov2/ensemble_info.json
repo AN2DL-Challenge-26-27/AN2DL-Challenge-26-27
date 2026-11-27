@@ -1,0 +1,41 @@
+{
+  "created": "2026-11-27 19:12",
+  "members": [
+    "convnext_tiny_224",
+    "convnext_tiny_384",
+    "convnext_small_288",
+    "dinov2_base_336"
+  ],
+  "member_files": {
+    "convnext_tiny_224": [
+      "outputs\\submissions\\ensemble_tiny224_tiny384_small288\\val_probabilities_e1_convnext_tiny_drop_copies_fold0.npy",
+      "outputs\\submissions\\ensemble_tiny224_tiny384_small288\\test_probabilities_e1_convnext_tiny_drop_copies_fold0.npy"
+    ],
+    "convnext_tiny_384": [
+      "outputs\\submissions\\ensemble_tiny224_tiny384_small288\\val_probabilities_e2_convnext_tiny_384_fold0.npy",
+      "outputs\\submissions\\ensemble_tiny224_tiny384_small288\\test_probabilities_e2_convnext_tiny_384_fold0.npy"
+    ],
+    "convnext_small_288": [
+      "outputs\\submissions\\ensemble_tiny224_tiny384_small288\\val_probabilities_e3_convnext_small_288_fold0.npy",
+      "outputs\\submissions\\ensemble_tiny224_tiny384_small288\\test_probabilities_e3_convnext_small_288_fold0.npy"
+    ],
+    "dinov2_base_336": [
+      "outputs\\submissions\\dinov2_base_336_notta\\val_probabilities_r2_dinov2_base_336_recipe_fold0_notta.npy",
+      "outputs\\submissions\\dinov2_base_336_notta\\test_probabilities_r2_dinov2_base_336_recipe_fold0_notta.npy"
+    ]
+  },
+  "validation_weighted_f1_ensemble": 0.8593,
+  "test_rows": 14736,
+  "predicted_class_counts": {
+    "0": 800,
+    "1": 1546,
+    "2": 2293,
+    "3": 1811,
+    "4": 366,
+    "5": 1675,
+    "6": 1240,
+    "7": 2288,
+    "8": 1186,
+    "9": 1531
+  }
+}

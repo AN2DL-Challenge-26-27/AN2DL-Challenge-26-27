@@ -1,0 +1,26 @@
+{
+  "created": "2026-11-27 19:12",
+  "members": [
+    "dinov2_base_336"
+  ],
+  "member_files": {
+    "dinov2_base_336": [
+      "outputs\\submissions\\dinov2_base_336_notta\\val_probabilities_r2_dinov2_base_336_recipe_fold0_notta.npy",
+      "outputs\\submissions\\dinov2_base_336_notta\\test_probabilities_r2_dinov2_base_336_recipe_fold0_notta.npy"
+    ]
+  },
+  "validation_weighted_f1_ensemble": 0.8514,
+  "test_rows": 14736,
+  "predicted_class_counts": {
+    "0": 690,
+    "1": 1519,
+    "2": 2398,
+    "3": 1848,
+    "4": 324,
+    "5": 1722,
+    "6": 1235,
+    "7": 2318,
+    "8": 1173,
+    "9": 1509
+  }
+}

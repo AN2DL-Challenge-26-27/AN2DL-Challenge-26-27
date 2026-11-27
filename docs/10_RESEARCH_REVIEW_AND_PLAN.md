@@ -123,3 +123,16 @@ Share of errors also made by the other model, as a fraction of the smaller error
 | --- | --- | ---: | ---: |
 | R1 | Done | 0.831 | 0.828 |
 | R2 | Done | 0.852 | 0.839 |
+
+## Leaderboard round 1 (2026-11-27)
+
+The first leaderboard score (3-model ConvNeXt ensemble: 0.8371, validation 0.856) showed a gap of about 2 points (see 08). Three more files test what DINOv2 adds on the real test set. DINOv2 is used **without TTA**: TTA lowered its own score (0.839 vs 0.851), and the ensembles score the same either way (4 models: 0.8593 without vs 0.8594 with). The files are built from saved probabilities by [experiments/combine_submissions.py](../experiments/combine_submissions.py) and stored in `results/submissions/`.
+
+| File | Models | Val wF1 | Differs from the 0.8371 file | Kaggle public |
+| --- | --- | ---: | ---: | ---: |
+| `ensemble_tiny224_tiny384_small288` (reference) | ConvNeXt Tiny-224 + Tiny-384 + Small-288 | 0.856 | — | 0.8371 |
+| `lb1_a_dinov2_alone` | DINOv2-Base 336 | 0.851 | 10.6% of test images | |
+| `lb1_b_4models_convnext3_dinov2` | the three ConvNeXt + DINOv2 | 0.859 | 2.4% | |
+| `lb1_c_tiny384_small288_dinov2` | Tiny-384 + Small-288 + DINOv2 | 0.860 | 3.4% | |
+
+File A answers whether one DINOv2 model generalises better than the ConvNeXt ensemble. B and C answer whether adding DINOv2 to ConvNeXt lifts the leaderboard. B and C change only 2–3% of the predictions, so their scores will move by tenths of a point at most.

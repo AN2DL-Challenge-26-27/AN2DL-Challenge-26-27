@@ -1,0 +1,24 @@
+{
+  "created": "2026-11-27 19:11",
+  "tta": false,
+  "runs": [
+    "r2_dinov2_base_336_recipe_fold0"
+  ],
+  "test_rows": 14736,
+  "predicted_class_counts": {
+    "0": 690,
+    "1": 1519,
+    "2": 2398,
+    "3": 1848,
+    "4": 324,
+    "5": 1722,
+    "6": 1235,
+    "7": 2318,
+    "8": 1173,
+    "9": 1509
+  },
+  "validation_weighted_f1_per_model": {
+    "r2_dinov2_base_336_recipe_fold0": 0.8514
+  },
+  "validation_weighted_f1_ensemble": 0.8514
+}

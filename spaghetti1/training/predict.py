@@ -47,7 +47,8 @@ def load_run(run_dir: Path, device: torch.device) -> tuple[torch.nn.Module, dict
     """Rebuild the network described by ``config.json`` and load ``best.pt`` (no internet needed)."""
     run_dir = Path(run_dir)
     config = json.loads((run_dir / "config.json").read_text(encoding="utf-8"))
-    model = create_model(config["model"], config.get("drop_path_rate", 0.1), pretrained=False)
+    model = create_model(config["model"], config.get("drop_path_rate", 0.1), pretrained=False,
+                         image_size=config["image_size"])
     state = torch.load(run_dir / "best.pt", map_location="cpu")
     model.load_state_dict(state)
     return model.to(device).eval(), config

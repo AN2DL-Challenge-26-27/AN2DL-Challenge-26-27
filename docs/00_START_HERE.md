@@ -18,6 +18,7 @@ Read the documents in number order. Each one builds on the previous one.
 | 07 | [Next steps](07_NEXT_STEPS.md) | Experiment roadmap for the baseline and model phases |
 | 08 | [Training and results](08_TRAINING_AND_RESULTS.md) | How to train a model, where results are saved, what was tested, and the results |
 | 09 | [Model weights and reproduction](09_MODEL_WEIGHTS_AND_REPRODUCTION.md) | Weights package on Google Drive; checking scores and creating submissions without retraining |
+| 10 | [Research review and plan](10_RESEARCH_REVIEW_AND_PLAN.md) | External deep-research findings checked against our data, and the experiments chosen next |
 
 If you only want to train a model, read 00, 03 (summary table only), and 06. Then open [notebooks/01_load_preprocessed_data.ipynb](../notebooks/01_load_preprocessed_data.ipynb).
 
@@ -30,6 +31,7 @@ If you only want to train a model, read 00, 03 (summary table only), and 06. The
 │   ├── test_manifest.csv
 │   └── preprocessing_summary.json
 ├── results/                    # lightweight results of every run + submission files (tracked in git)
+├── experiments/                # scripts for planned experiment rounds (e.g. research_round1.ps1)
 ├── notebooks/
 │   └── 01_load_preprocessed_data.ipynb   # Colab entry point for every teammate
 ├── spaghetti1/                 # Python package; run it with `python -m spaghetti1 <command>`

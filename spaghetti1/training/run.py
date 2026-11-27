@@ -27,7 +27,11 @@ import time
 
 import numpy as np
 import pandas as pd
+import math
+
 import torch
+from timm.data import Mixup
+from timm.utils import ModelEmaV3
 from torch import nn
 
 from ..config import NUM_CLASSES, PROJECT_DIR
@@ -67,6 +71,15 @@ class TrainConfig:
     num_workers: int = 4
     seed: int = 42
     resume: bool = False  # continue from outputs/runs/<run_name>/last.pt if it exists
+    # Recipe options added after the research review (docs/10); all off by default, so the
+    # commands of the earlier runs reproduce exactly.
+    layer_decay: float = 0.0        # > 0: layer-wise LR decay; ``lr`` is then the head's learning rate
+    ema_decay: float = 0.0          # > 0: evaluate and save an exponential moving average of the weights
+    mixup_alpha: float = 0.0        # > 0: MixUp (no CutMix) with mixing weights from Beta(alpha, alpha)
+    mixup_prob: float = 0.5         # share of batches that are mixed
+    mixup_off_epochs: int = 5       # train the last N epochs without MixUp
+    accumulation_steps: int = 1     # batches per optimizer step (effective batch = batch_size x this)
+    grad_checkpointing: bool = False  # trade compute for memory (large ViTs on 8 GB)
 
 
 def seed_everything(seed: int) -> None:
@@ -77,10 +90,11 @@ def seed_everything(seed: int) -> None:
 
 
 def save_training_state(path: Path, model, optimizer, epoch: int, step: int, history: list,
-                        best_f1: float, best_epoch: int) -> None:
+                        best_f1: float, best_epoch: int, ema=None) -> None:
     """Write everything needed to continue training; the temporary file makes the save atomic."""
     state = {
         "model": model.state_dict(), "optimizer": optimizer.state_dict(), "epoch": epoch, "step": step,
+        "ema": ema.module.state_dict() if ema is not None else None,
         "history": history, "best_f1": best_f1, "best_epoch": best_epoch,
         "rng": {"python": random.getstate(), "numpy": np.random.get_state(), "torch": torch.get_rng_state(),
                 "cuda": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None},
@@ -90,11 +104,13 @@ def save_training_state(path: Path, model, optimizer, epoch: int, step: int, his
     temporary.replace(path)
 
 
-def load_training_state(path: Path, model, optimizer) -> tuple[int, int, list, float, int]:
+def load_training_state(path: Path, model, optimizer, ema=None) -> tuple[int, int, list, float, int]:
     """Restore a ``last.pt``; return (next epoch, step, history, best F1, best epoch)."""
     state = torch.load(path, map_location="cpu", weights_only=False)  # RNG states must stay on the CPU
     model.load_state_dict(state["model"])
     optimizer.load_state_dict(state["optimizer"])
+    if ema is not None and state.get("ema") is not None:
+        ema.module.load_state_dict(state["ema"])
     random.setstate(state["rng"]["python"])
     np.random.set_state(state["rng"]["numpy"])
     torch.set_rng_state(state["rng"]["torch"])
@@ -139,18 +155,25 @@ def run_experiment(run: TrainConfig, data_dir: Path) -> dict:
     print(f"[{run.run_name}] train {len(loaders.train_frame):,} | validation {len(loaders.validation_frame):,} "
           f"| device {device} | amp {amp_dtype}", flush=True)
 
-    model = create_model(run.model, run.drop_path_rate).to(device)
+    model = create_model(run.model, run.drop_path_rate, image_size=run.image_size).to(device)
+    if run.grad_checkpointing:
+        model.set_grad_checkpointing(True)
     weights = class_weights(loaders.train_frame["label"], run.class_weight_power) if run.class_weight_power else None
-    criterion = nn.CrossEntropyLoss(weight=None if weights is None else weights.to(device),
-                                    label_smoothing=run.label_smoothing)
-    optimizer = build_optimizer(model, run.lr, run.head_lr_multiplier, run.weight_decay)
-    total_steps = run.epochs * len(loaders.train)
-    warmup_steps = int(run.warmup_epochs * len(loaders.train))
+    weights = None if weights is None else weights.to(device)
+    criterion = nn.CrossEntropyLoss(weight=weights, label_smoothing=run.label_smoothing)
+    mixup = (Mixup(mixup_alpha=run.mixup_alpha, cutmix_alpha=0.0, prob=run.mixup_prob,
+                   label_smoothing=run.label_smoothing, num_classes=NUM_CLASSES)
+             if run.mixup_alpha > 0 else None)
+    optimizer = build_optimizer(model, run.lr, run.head_lr_multiplier, run.weight_decay, run.layer_decay)
+    ema = ModelEmaV3(model, decay=run.ema_decay, use_warmup=True) if run.ema_decay > 0 else None
+    steps_per_epoch = math.ceil(len(loaders.train) / run.accumulation_steps)
+    total_steps = run.epochs * steps_per_epoch
+    warmup_steps = int(run.warmup_epochs * steps_per_epoch)
 
     history, best_f1, best_epoch, step, start_epoch = [], -1.0, 0, 0, 1
     last_state = output / "last.pt"
     if run.resume and last_state.exists():
-        start_epoch, step, history, best_f1, best_epoch = load_training_state(last_state, model, optimizer)
+        start_epoch, step, history, best_f1, best_epoch = load_training_state(last_state, model, optimizer, ema)
         print(f"[{run.run_name}] resumed after epoch {start_epoch - 1} (best wF1 {best_f1:.4f} at epoch {best_epoch})",
               flush=True)
     elif run.resume:
@@ -158,29 +181,33 @@ def run_experiment(run: TrainConfig, data_dir: Path) -> dict:
     has_validation = len(loaders.validation_frame) > 0
     for epoch in range(start_epoch, run.epochs + 1):
         epoch_start = time.time()
+        mix_this_epoch = mixup if epoch <= run.epochs - run.mixup_off_epochs else None
         train_loss, train_acc, step = train_one_epoch(
             model, loaders.train, criterion, optimizer, device,
             step=step, total_steps=total_steps, warmup_steps=warmup_steps, amp_dtype=amp_dtype,
+            mixup=mix_this_epoch, class_weight=weights, ema=ema, accumulation_steps=run.accumulation_steps,
         )
-        record = {"epoch": epoch, "lr": optimizer.param_groups[0]["lr"], "train_loss": train_loss, "train_acc": train_acc}
+        evaluated = ema.module if ema is not None else model  # the weights that are scored and saved
+        record = {"epoch": epoch, "lr": max(group["lr"] for group in optimizer.param_groups),
+                  "train_loss": train_loss, "train_acc": train_acc, "mixup": mix_this_epoch is not None}
         if has_validation:
-            probs, labels, val_loss = predict(model, loaders.validation, device, amp_dtype=amp_dtype)
+            probs, labels, val_loss = predict(evaluated, loaders.validation, device, amp_dtype=amp_dtype)
             scores = compute_metrics(labels, probs.argmax(1))
             record.update(val_loss=val_loss, val_weighted_f1=scores["weighted_f1"], val_macro_f1=scores["macro_f1"],
                           val_acc=scores["accuracy"])
             if scores["weighted_f1"] > best_f1:
                 best_f1, best_epoch = scores["weighted_f1"], epoch
-                torch.save(model.state_dict(), output / "best.pt")
+                torch.save(evaluated.state_dict(), output / "best.pt")
         record["seconds"] = round(time.time() - epoch_start, 1)
         history.append(record)
         pd.DataFrame(history).to_csv(output / "history.csv", index=False)
-        save_training_state(last_state, model, optimizer, epoch, step, history, best_f1, best_epoch)
+        save_training_state(last_state, model, optimizer, epoch, step, history, best_f1, best_epoch, ema)
         print(f"[{run.run_name}] epoch {epoch:2d}/{run.epochs} loss {train_loss:.3f} acc {train_acc:.3f}"
               + (f" | val loss {val_loss:.3f} wF1 {scores['weighted_f1']:.4f} acc {scores['accuracy']:.3f}"
                  if has_validation else "") + f" | {record['seconds']:.0f}s", flush=True)
 
     if not has_validation:  # fold = -1: final model trained on everything
-        torch.save(model.state_dict(), output / "best.pt")
+        torch.save((ema.module if ema is not None else model).state_dict(), output / "best.pt")
         best_epoch = run.epochs
     model.load_state_dict(torch.load(output / "best.pt", map_location=device))
 

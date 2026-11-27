@@ -107,7 +107,7 @@ With 599 images, differences below about 1.5 points are within noise.
 | Test-time augmentation | 8-way rotation/flip averaging | Every run | −1.3 to +0.6 points; not reliable alone |
 | Ensembling | Average of class probabilities | Fold-0 validation | **+1 point** (0.856 with three models) |
 | Reproduction | `evaluate` / `predict` from saved weights, weights package with checksums | CPU re-scoring | TTA score reproduced exactly (0.8441); see 09 |
-| Not yet tested | EMA, MixUp/CutMix, 5-fold training, other architecture families, pseudo-labelling, class-weight and threshold tuning | | Planned in 07 |
+| Not yet tested | EMA, MixUp, layer-wise LR decay, DINOv2/EVA-02, 5-fold training, pseudo-labelling, class-weight and threshold tuning | | Planned in 10 (research review) |
 
 ## Submissions
 

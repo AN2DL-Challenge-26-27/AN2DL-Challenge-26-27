@@ -1,6 +1,6 @@
 # 09 · Model weights and reproducing the results
 
-Previous: [08 · Training and results](08_TRAINING_AND_RESULTS.md)
+Previous: [08 · Training and results](08_TRAINING_AND_RESULTS.md) · Next: [10 · Research review and plan](10_RESEARCH_REVIEW_AND_PLAN.md)
 
 Every trained model is shared as **one zip file on Google Drive**, next to the image dataset. With it, anyone can check the reported validation scores and create the submission files **without retraining**.
 

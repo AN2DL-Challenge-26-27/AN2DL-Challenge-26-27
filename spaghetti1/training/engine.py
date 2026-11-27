@@ -1,4 +1,5 @@
-"""Model creation, one training epoch, and prediction with optional 8-way TTA.
+"""Model creation, optimizer (optionally with layer-wise LR decay), one training epoch
+(optionally with MixUp, gradient accumulation, and weight EMA), and prediction with 8-way TTA.
 
 Documentation: ``docs/08_TRAINING_AND_RESULTS.md``.
 """
@@ -9,18 +10,42 @@ import numpy as np
 import timm
 import torch
 from torch import nn
+from timm.optim import param_groups_layer_decay
 from torch.utils.data import DataLoader
 
 from ..config import NUM_CLASSES
 
 
-def create_model(name: str, drop_path_rate: float = 0.1, pretrained: bool = True) -> nn.Module:
+# Plain vision transformers have a fixed patch grid; timm resizes their position embeddings
+# when ``img_size`` is passed (e.g. DINOv2 at 336 px = 24 x 24 patches of 14 px).
+FIXED_SIZE_FAMILIES = ("vit_", "eva", "deit", "beit")
+
+
+def create_model(name: str, drop_path_rate: float = 0.1, pretrained: bool = True,
+                 image_size: int | None = None) -> nn.Module:
     """A ``timm`` backbone with a fresh 10-class head."""
-    return timm.create_model(name, pretrained=pretrained, num_classes=NUM_CLASSES, drop_path_rate=drop_path_rate)
+    kwargs = {}
+    if image_size and name.startswith(FIXED_SIZE_FAMILIES):
+        kwargs["img_size"] = image_size
+    return timm.create_model(name, pretrained=pretrained, num_classes=NUM_CLASSES, drop_path_rate=drop_path_rate,
+                             **kwargs)
 
 
-def build_optimizer(model: nn.Module, lr: float, head_lr_multiplier: float, weight_decay: float) -> torch.optim.Optimizer:
-    """AdamW with a higher learning rate for the new head; no weight decay on norms and biases."""
+def build_optimizer(model: nn.Module, lr: float, head_lr_multiplier: float, weight_decay: float,
+                    layer_decay: float = 0.0) -> torch.optim.Optimizer:
+    """AdamW without weight decay on norms and biases.
+
+    * ``layer_decay == 0``: the backbone uses ``lr`` and the new head ``lr * head_lr_multiplier``.
+    * ``layer_decay > 0``: layer-wise LR decay; the head uses ``lr`` and each earlier block is
+      scaled by another factor ``layer_decay`` (timm's grouping), which protects pretrained filters.
+    """
+    if layer_decay > 0:
+        no_decay = model.no_weight_decay() if hasattr(model, "no_weight_decay") else set()
+        param_groups = param_groups_layer_decay(model, weight_decay=weight_decay, layer_decay=layer_decay,
+                                                no_weight_decay_list=no_decay)
+        for group in param_groups:
+            group["lr"] = group["base_lr"] = lr * group.pop("lr_scale", 1.0)
+        return torch.optim.AdamW(param_groups)
     head_ids = {id(p) for p in model.get_classifier().parameters()}
     groups: dict[tuple[bool, bool], list] = {}
     for parameter in model.parameters():
@@ -50,26 +75,48 @@ def set_learning_rate(optimizer: torch.optim.Optimizer, step: int, total_steps: 
         group["lr"] = group["base_lr"] * factor
 
 
+def soft_cross_entropy(logits: torch.Tensor, targets: torch.Tensor, weight: torch.Tensor | None = None) -> torch.Tensor:
+    """Cross-entropy against probability targets (MixUp), with optional per-class weights."""
+    log_probs = logits.float().log_softmax(1)
+    if weight is not None:
+        log_probs = log_probs * weight
+    return -(targets * log_probs).sum(1).mean()
+
+
 def train_one_epoch(model, loader: DataLoader, criterion, optimizer, device, *, step: int, total_steps: int,
-                    warmup_steps: int, amp_dtype) -> tuple[float, float, int]:
-    """Train for one pass over ``loader``; return (mean loss, accuracy, next global step)."""
+                    warmup_steps: int, amp_dtype, mixup=None, class_weight=None, ema=None,
+                    accumulation_steps: int = 1) -> tuple[float, float, int]:
+    """Train for one pass over ``loader``; return (mean loss, accuracy, next optimizer step).
+
+    ``mixup`` (a ``timm.data.Mixup``) turns the labels into soft targets for this epoch.
+    ``accumulation_steps`` > 1 sums gradients over several batches per optimizer step.
+    ``ema`` (a ``timm.utils.ModelEmaV3``) is updated after every optimizer step.
+    """
     model.train()
     loss_sum, correct, seen = 0.0, 0, 0
-    for images, labels in loader:
+    optimizer.zero_grad(set_to_none=True)
+    batches = len(loader)
+    for index, (images, labels) in enumerate(loader):
         images = images.to(device, non_blocking=True)
         labels = labels.to(device, non_blocking=True)
-        set_learning_rate(optimizer, step, total_steps, warmup_steps)
+        targets = None
+        if mixup is not None:
+            images, targets = mixup(images, labels)
         with torch.autocast(device_type=device.type, dtype=amp_dtype, enabled=amp_dtype is not None):
             logits = model(images)
-            loss = criterion(logits, labels)
-        optimizer.zero_grad(set_to_none=True)
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-        optimizer.step()
+            loss = criterion(logits, labels) if targets is None else soft_cross_entropy(logits, targets, class_weight)
+        (loss / accumulation_steps).backward()
+        if (index + 1) % accumulation_steps == 0 or index + 1 == batches:
+            set_learning_rate(optimizer, step, total_steps, warmup_steps)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            optimizer.step()
+            optimizer.zero_grad(set_to_none=True)
+            step += 1
+            if ema is not None:
+                ema.update(model, step=step)
         loss_sum += loss.item() * len(labels)
         correct += (logits.argmax(1) == labels).sum().item()
         seen += len(labels)
-        step += 1
     return loss_sum / seen, correct / seen, step
 
 

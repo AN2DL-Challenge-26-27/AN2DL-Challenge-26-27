@@ -39,7 +39,7 @@ For E1, also report F1 on the 2/3 and 5/6 classes separately. That is where the 
 
 ## Status (2026-11-26)
 
-Done: E0 (baseline), E1 (label policies), resolution 288/384, ConvNeXt-Small, TTA, and a first 3-model ensemble (see [08](08_TRAINING_AND_RESULTS.md)). Everything in the revised plan below is still open.
+Done: E0 (baseline), E1 (label policies), resolution 288/384, ConvNeXt-Small, TTA, and a first 3-model ensemble (see [08](08_TRAINING_AND_RESULTS.md)). Everything in the revised plan below is still open. The plan was refined after an external research review; the current order is in [10](10_RESEARCH_REVIEW_AND_PLAN.md).
 
 ## Revised plan after the first results (2026-11-26)
 

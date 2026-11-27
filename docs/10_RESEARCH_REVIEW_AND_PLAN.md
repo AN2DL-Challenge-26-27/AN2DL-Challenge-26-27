@@ -175,6 +175,11 @@ In ensembles the robustness is already covered by ConvNeXt + DINOv2:
 | --- | ---: | ---: | ---: | ---: |
 | Tiny-384 + Small-288 + DINOv2 | 0.8596 | 0.8597 | 0.8410 | 0.8424 |
 | 3 ConvNeXt + DINOv2 | 0.8593 | 0.8627 | 0.8405 | 0.8410 |
-| 3 ConvNeXt + DINOv2 + DINOv3 (`lb1_d_...`) | 0.8547 | 0.8609 | 0.8431 | |
+| 3 ConvNeXt + DINOv2 + DINOv3 (`lb1_d_...`) | 0.8547 | 0.8609 | 0.8431 | **0.8441** |
 
-Adding DINOv3 is expected to be neutral on the leaderboard. The plan stays 5-fold DINOv2.
+Adding DINOv3 was expected to be neutral. On Kaggle it **raised the best score from 0.8424 to 0.8441**, although clean validation ranked it lower (0.8547 vs 0.8596). The test-like and heavy-corruption scores pointed the right way. Two lessons:
+
+* **Choose ensembles by clean and test-like validation together**, not by clean validation alone (`experiments/robustness_check.py`).
+* **DINOv3 earns its place through robustness**, not through its clean score. Updated plan: 5-fold DINOv2 first (`dinov2_5fold`), then 5-fold DINOv3 (`dinov3_5fold`). The final ensemble combines both fold sets with the ConvNeXt models.
+
+The gain is small (+0.17 points from 2.4% changed predictions). Since the final ranking uses a hidden part of the test set, avoid tuning finely on the public leaderboard.

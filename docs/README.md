@@ -16,5 +16,6 @@ Read the documents in number order. [00 · Start here](00_START_HERE.md) explain
 | 09 | [Model weights and reproduction](09_MODEL_WEIGHTS_AND_REPRODUCTION.md) |
 | 10 | [Research review and plan](10_RESEARCH_REVIEW_AND_PLAN.md) |
 | 11 | [Training in the cloud](11_CLOUD_TRAINING.md) |
+| 12 | [Concepts and techniques explained](12_CONCEPTS_EXPLAINED.md) |
 
 `research/` keeps external research reports unedited. `figures/` holds the images used in these documents. [SPAGHETTI-1-Progress-Report.pdf](SPAGHETTI-1-Progress-Report.pdf) is the earlier progress report from the EDA phase.

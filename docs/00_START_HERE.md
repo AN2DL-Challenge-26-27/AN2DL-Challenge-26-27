@@ -36,6 +36,9 @@ Read the documents in number order. Each one builds on the previous one.
 | 09 | [Model weights and reproduction](09_MODEL_WEIGHTS_AND_REPRODUCTION.md) | Weights package on Google Drive; checking scores and creating submissions without retraining |
 | 10 | [Research review and plan](10_RESEARCH_REVIEW_AND_PLAN.md) | External deep-research findings checked against our data, and the experiments chosen next |
 | 11 | [Training in the cloud](11_CLOUD_TRAINING.md) | Running experiment queues on Google Colab or Kaggle and bringing the results back |
+| 12 | [Concepts and techniques explained](12_CONCEPTS_EXPLAINED.md) | Every idea and technique used in the project, in plain language, with a glossary |
+
+**New to machine learning?** Read [12 · Concepts and techniques explained](12_CONCEPTS_EXPLAINED.md) first; it explains every term used in the other documents.
 
 If you only want to train a model, read 00, 03 (summary table only), and 06, then open [notebooks/01_load_preprocessed_data.ipynb](../notebooks/01_load_preprocessed_data.ipynb). To train in Google Colab, read 11 and use [notebooks/03_colab_training.ipynb](../notebooks/03_colab_training.ipynb).
 

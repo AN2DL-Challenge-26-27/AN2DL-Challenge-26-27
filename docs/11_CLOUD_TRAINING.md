@@ -1,6 +1,6 @@
 # 11 · Training in the cloud (Google Colab or Kaggle)
 
-Previous: [10 · Research review and plan](10_RESEARCH_REVIEW_AND_PLAN.md)
+Previous: [10 · Research review and plan](10_RESEARCH_REVIEW_AND_PLAN.md) · Next: [12 · Concepts and techniques explained](12_CONCEPTS_EXPLAINED.md)
 
 The laptop GPU needs cooling pauses about half the time, which roughly doubles every run (see 10). Long plans such as 5-fold training are better run in the cloud. Two options use the same code and the same config files:
 

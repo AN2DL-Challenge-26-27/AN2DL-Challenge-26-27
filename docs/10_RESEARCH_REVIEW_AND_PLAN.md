@@ -131,8 +131,17 @@ The first leaderboard score (3-model ConvNeXt ensemble: 0.8371, validation 0.856
 | File | Models | Val wF1 | Differs from the 0.8371 file | Kaggle public |
 | --- | --- | ---: | ---: | ---: |
 | `ensemble_tiny224_tiny384_small288` (reference) | ConvNeXt Tiny-224 + Tiny-384 + Small-288 | 0.856 | — | 0.8371 |
-| `lb1_a_dinov2_alone` | DINOv2-Base 336 | 0.851 | 10.6% of test images | |
-| `lb1_b_4models_convnext3_dinov2` | the three ConvNeXt + DINOv2 | 0.859 | 2.4% | |
-| `lb1_c_tiny384_small288_dinov2` | Tiny-384 + Small-288 + DINOv2 | 0.860 | 3.4% | |
+| `lb1_a_dinov2_alone` | DINOv2-Base 336 | 0.851 | 10.6% of test images | 0.8321 |
+| `lb1_b_4models_convnext3_dinov2` | the three ConvNeXt + DINOv2 | 0.859 | 2.4% | 0.8410 |
+| `lb1_c_tiny384_small288_dinov2` | Tiny-384 + Small-288 + DINOv2 | 0.860 | 3.4% | **0.8424** |
 
 File A answers whether one DINOv2 model generalises better than the ConvNeXt ensemble. B and C answer whether adding DINOv2 to ConvNeXt lifts the leaderboard. B and C change only 2–3% of the predictions, so their scores will move by tenths of a point at most.
+
+### What the leaderboard told us
+
+* **Validation ranks submissions correctly.** All four files have the same order on the leaderboard as on fold-0 validation, with a nearly constant gap of 1.7–1.9 points. Local validation can therefore be used to choose between models; the leaderboard is only needed to confirm.
+* **Model diversity pays off on the test set.** Adding DINOv2 to ConvNeXt raised the leaderboard from 0.8371 to 0.8424 (+0.5), although DINOv2 alone (0.8321) is weaker than the ConvNeXt ensemble.
+* **The constant gap of about 1.8 points is structural:** it does not depend on the model. Likely causes are training on 80% of the data (fold-0 models) and a mild test-domain shift.
+* **Best file so far:** `lb1_c_tiny384_small288_dinov2`, 0.8424.
+
+**Next:** 5-fold training of DINOv2 and ConvNeXt-Tiny-384 (models that together see all training data, fold ensembles, out-of-fold scores), then a third family (EVA-02 or ConvNeXt-V2), then pseudo-labelling to attack the gap.

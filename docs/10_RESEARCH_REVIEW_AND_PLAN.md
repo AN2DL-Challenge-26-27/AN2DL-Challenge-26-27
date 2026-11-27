@@ -145,3 +145,14 @@ File A answers whether one DINOv2 model generalises better than the ConvNeXt ens
 * **Best file so far:** `lb1_c_tiny384_small288_dinov2`, 0.8424.
 
 **Next:** 5-fold training of DINOv2 and ConvNeXt-Tiny-384 (models that together see all training data, fold ensembles, out-of-fold scores), then a third family (EVA-02 or ConvNeXt-V2), then pseudo-labelling to attack the gap.
+
+## Newer models: DINOv3 (2025), fold 0
+
+Both runs use the same recipe as their counterparts, so the comparison is direct. Configs: `n1_dinov3_convnext_tiny_288_fold0.env` and `n2_dinov3_base_384_recipe_fold0.env`.
+
+| Run | Weighted F1 | + TTA | Compared with | Shared errors | Effect on the best ensemble |
+| --- | ---: | ---: | --- | ---: | --- |
+| N1: DINOv3 ConvNeXt-Tiny 288 | 0.840 | 0.833 | ImageNet ConvNeXt-Tiny 288: 0.846 | 79–83% with the other models | none (best combos do not include it) |
+| N2: DINOv3 ViT-B/16 384 | 0.832 | 0.843 | DINOv2-B 336: 0.851 | 84% with DINOv2 | lowers it: 0.860 → 0.852–0.858 |
+
+**Verdict:** with the same recipe, DINOv3 is slightly weaker than DINOv2 on this task and adds no diversity. It also trains slower (95 vs 70 min on the laptop). DINOv2 remains the model for 5-fold training (`dinov2_5fold` in the Colab/Kaggle notebooks). A DINOv3 learning-rate search could change this, but it is not a priority.
